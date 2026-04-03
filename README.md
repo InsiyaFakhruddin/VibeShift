@@ -63,6 +63,33 @@ cd VibeShift
 
 ---
 
+## 🔄 Step 2.5: Update Repository (For Existing Clones)
+
+If you **already cloned the repository earlier**, pull the latest updates:
+
+```bash
+cd VibeShift
+git pull origin main
+```
+
+This will download:
+- ✅ CycleGAN training pipeline (train.py, convert.py)
+- ✅ Dataset preparation script (prepare_dataset.py)
+- ✅ Pre-trained genre transformation models (checkpoints/)
+- ✅ Training utilities and test audio samples
+
+**What you'll get:**
+```
+✓ train.py         — Train CycleGAN models for any genre pair
+✓ convert.py       — Convert audio between genres
+✓ prepare_dataset.py — Prepare GTZAN audio for training
+✓ modules/cyclegan/ — Full CycleGAN implementation
+✓ checkpoints/jazz_to_disco/ — Pre-trained jazz↔disco model
+✓ test_cases/genre_change/ — Test audio samples
+```
+
+---
+
 ## 🧩 Step 3: Create Virtual Environment
 
 Navigate to the project folder and create an isolated Python environment:
@@ -184,7 +211,9 @@ modules/hifi_gan/
 
 ## ▶️ Running the Pipeline
 
-Once setup is complete, test the full pipeline:
+### **Option 1: Quick Test (Requires HiFi-GAN model)**
+
+Once setup is complete, test the basic audio pipeline:
 
 ```bash
 python test.py
@@ -205,6 +234,48 @@ Audio saved to reconstructed.wav
 
 ---
 
+### **Option 2: Genre Transformation (New!)**
+
+Transform music between genres using CycleGAN. Includes pre-trained **jazz ↔ disco** model.
+
+**Step 1: Convert GTZAN audio to mel spectrograms**
+```bash
+python prepare_dataset.py
+```
+- Converts all `.wav` files in `data/genres_original/` to mel spectrograms
+- Saves to `data/mels/` (takes 30-45 minutes for full GTZAN)
+- **Only needed if retraining models**
+
+**Step 2: Train a CycleGAN model** (optional)
+```bash
+python train.py
+```
+- Trains jazz ↔ disco genre transformation
+- Uses pre-configured 300 epochs
+- Automatically detects GPU (much faster!)
+- Saves checkpoints every 25 epochs
+- **Takes 3-4 hours on GPU or 12+ hours on CPU**
+
+**Step 3: Convert audio between genres**
+```bash
+python convert.py
+```
+- Takes a jazz song and transforms it to disco style
+- Uses `checkpoints/jazz_to_disco/epoch_250.pt` (best checkpoint)
+- Outputs to `output_jazz_to_disco.wav`
+- **Takes 1-2 minutes**
+
+**To use a different genre pair:**
+Edit `train.py` and `convert.py`:
+```python
+GENRE_A = 'jazz'       # Change this
+GENRE_B = 'classical'  # Change this
+```
+
+Supported genres: blues, classical, country, disco, hiphop, jazz, metal, pop, reggae, rock
+
+---
+
 ## 📁 Project Structure
 
 ```
@@ -218,12 +289,37 @@ VibeShift/
 │   │   ├── config_v1.json
 │   │   ├── generator_v1         # (Download & place here)
 │   │   └── ...
-│   ├── audio_to_mel.py
-│   └── mel_to_audio.py
-├── test_cases/                  # Sample audio files for testing
+│   └── cyclegan/                # CycleGAN genre transformation
+│       ├── generator.py         # Generator network
+│       ├── discriminator.py     # PatchGAN discriminator
+│       ├── dataset.py           # GTZAN dataset loader
+│       ├── buffer.py            # Replay buffer for training
+│       ├── cyclegan.py          # Full training pipeline
+│       └── __init__.py
+├── data/
+│   └── gtzan/
+│       ├── genres_original/     # Raw GTZAN audio files (100 per genre)
+│       │   ├── jazz/*.wav
+│       │   ├── classical/*.wav
+│       │   └── ...
+│       └── mels/                # Generated mel spectrograms (created by prepare_dataset.py)
+│           ├── jazz/*.npy
+│           └── ...
+├── checkpoints/
+│   └── jazz_to_disco/           # Pre-trained genre transformation models
+│       ├── epoch_210.pt
+│       ├── epoch_220.pt
+│       ├── epoch_250.pt         # ⭐ Best checkpoint (recommended)
+│       └── ...
+├── test_cases/
+│   ├── stemmer/                 # Audio stemming test files
+│   └── genre_change/            # Genre conversion test samples
 ├── output_songs/                # Generated output directory
 ├── requirements.txt             # Python dependencies
-├── test.py                      # Test script (run this first!)
+├── test.py                      # Test script (run for basic pipeline)
+├── prepare_dataset.py           # Convert GTZAN to mel spectrograms
+├── train.py                     # Train CycleGAN models
+├── convert.py                   # Convert audio between genres ⭐
 ├── app.py                       # Main application
 └── README.md                    # This file
 ```
@@ -235,8 +331,6 @@ VibeShift/
 ### **"ModuleNotFoundError: No module named..."**
 - Make sure virtual environment is **activated** (check `(vibeshift-env)` in terminal)
 - Run: `pip install -r requirements.txt` again
-
-### **"FileNotFoundError: generator_v1 not found"**
 - Download HiFi-GAN model from the link above
 - Ensure it's placed in `modules/hifi_gan/`
 - Rename it to exactly `generator_v1`
