@@ -72,7 +72,17 @@ class Generator(nn.Module):
         )
 
     def forward(self, x):
-        x = self.encoder(x)
+        # Instance normalization: normalize each (mel, time) slice independently
+        # Store stats so we can denormalize the output
+        mean = x.mean(dim=[1, 2], keepdim=True)   # mean over mel bins and time
+        std  = x.std(dim=[1, 2], keepdim=True) + 1e-8
+        x_norm = (x - mean) / std
+
+        x = self.encoder(x_norm)
         x = self.res_blocks(x)
         x = self.decoder(x)
+
+        # Denormalize output back to the target domain's expected scale
+        # Use the INPUT stats — the genre change should shift timbre, not energy
+        x = x * std + mean
         return x

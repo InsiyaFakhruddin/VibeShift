@@ -42,10 +42,12 @@ input_path  = 'test_cases\\genre_change\\Jazz1.mp3'
 output_path = f'output_{GENRE_A}_to_{GENRE_B}.wav'
 
 print(f"Converting audio...")
-mel      = audio_to_mel(input_path)               # (1, 80, T)
+mel      = audio_to_mel(input_path)               # (1, 128, T)
 print(f"  ✓ Mel-spectrogram extracted: {mel.shape}")
 
-fake_mel = model.convert_a_to_b(mel)              # (1, 80, T)
+fake_mel = model.convert_a_to_b(mel)              # (1, 128, T)
+# Clamp the fake mel to HiFi-GAN's expected range to prevent buzzing
+fake_mel = torch.clamp(fake_mel, min=-11.5, max=1.5)
 print(f"  ✓ Genre transformation applied: {fake_mel.shape}")
 
 audio    = m2a.convert(fake_mel)

@@ -133,7 +133,7 @@ class MelToAudio:
         # Validate params match audiotomel.py
         expected = {
             'sampling_rate': 22050,
-            'num_mels':       80,
+            'num_mels':       128,    # changed from 80 for better vocal quality
             'n_fft':          1024,
             'hop_size':       256,
             'win_size':       1024,
@@ -215,7 +215,7 @@ class MelToAudio:
             mel_tensor,
             self.device,
             chunk_frames=256,    # ~2.9s per chunk
-            overlap_frames=32    # ~0.37s crossfade overlap
+            overlap_frames=64    # ~0.74s crossfade overlap (doubled from 32)
         )
 
         # ── Post-processing ──────────────────────────────────────────────

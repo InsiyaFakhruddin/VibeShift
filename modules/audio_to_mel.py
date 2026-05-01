@@ -9,7 +9,7 @@ def audio_to_mel(
     n_fft=1024,
     hop_length=256,
     win_length=1024,
-    n_mels=80,
+    n_mels=128,
     fmin=0,
     fmax=8000
 ):
@@ -44,7 +44,14 @@ def audio_to_mel(
     return mel_tensor
 
 
-def verify_mel(mel_tensor):
+def verify_mel(mel_tensor, strict=False):
+    """
+    Verify mel spectrogram is in expected range.
+    
+    Args:
+        mel_tensor: torch.Tensor of shape (1, n_mels, T)
+        strict: if True, raise ValueError on out-of-range values
+    """
     mn   = mel_tensor.min().item()
     mx   = mel_tensor.max().item()
     mean = mel_tensor.mean().item()
@@ -53,7 +60,10 @@ def verify_mel(mel_tensor):
     print(f"Mel max   : {mx:.3f}  (expected ≈  +1.5)")
     print(f"Mel mean  : {mean:.3f} (expected ≈  -4.0)")
     if mn < -13 or mx > 3:
-        print("WARNING: Mel range outside expected bounds — check parameters.")
+        msg = f"Mel range [{mn:.2f}, {mx:.2f}] is outside expected bounds."
+        if strict:
+            raise ValueError(msg)
+        print(f"WARNING: {msg}")
     else:
         print("Mel range looks correct.")
 
