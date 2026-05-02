@@ -2,7 +2,7 @@
 # VibeShift CycleGAN Training Script for Google Colab
 # ============================================================
 # This script trains CycleGAN for genre conversion using GPU
-# Updated for n_mels=128 and new loss functions (MultiScaleSTFTLoss, weighted_mel_loss)
+# Updated for n_mels=80 and new loss functions (MultiScaleSTFTLoss, weighted_mel_loss)
 # 
 # Usage: Change GENRE_A and GENRE_B below, then run all cells
 # ============================================================
@@ -63,7 +63,7 @@ if os.path.exists("Data/genres_original/gtzan"):
 
 print("GTZAN dataset ready!")
 
-#@title # 4. Convert Audio to Mel Spectrograms (128 mels)
+#@title # 4. Convert Audio to Mel Spectrograms (80 mels)
 #{#}markdown
 import numpy as np
 from modules.audio_to_mel import audio_to_mel, verify_mel
@@ -76,7 +76,7 @@ GENRES = ['blues', 'classical', 'country', 'disco',
 GTZAN_AUDIO = 'Data/genres_original'
 GTZAN_MELS  = 'Data/mels'
 
-print("Converting audio to mel spectrograms (128 mels)...")
+print("Converting audio to mel spectrograms (80 mels)...")
 
 for genre in GENRES:
     in_dir  = os.path.join(GTZAN_AUDIO, genre)
@@ -93,26 +93,30 @@ for genre in GENRES:
     for fname in files:
         audio_path = os.path.join(in_dir, fname)
         npy_path   = os.path.join(out_dir, fname.replace('.wav', '.npy'))
-        
+
         if os.path.exists(npy_path):
             continue
-            
+
         try:
-            mel = audio_to_mel(audio_path)  # Uses n_mels=128 by default
+            mel = audio_to_mel(audio_path)  # Uses n_mels=80 by default
             verify_mel(mel, strict=True)     # Verify mel is in expected range
             np.save(npy_path, mel.squeeze(0).numpy())
         except Exception as e:
             print(f"  SKIP {fname}: {e}")
-    
+
     print(f"  Done → {out_dir}")
 
-print("\n✅ All mel spectrograms ready (128 mels)!")
+print("\n✅ All mel spectrograms ready (80 mels)!")
+
+#@title # 4.5 Optional: Separate vocals using Demucs
+#{#}markdown
+# Optional vocal separation for vocal/instrumental stem files.
+# Run this before training if you want preprocessed stems in `Data/gtzan_stems`.
+#
+# !pip install demucs
+# !python preprocess_data.py
 
 #@title # 5. Training Configuration - SET YOUR GENRES HERE
-#{#}markdown
-# ============================================================
-# CHANGE THESE VALUES FOR DIFFERENT GENRE PAIRS
-# ============================================================
 
 GENRE_A = 'jazz'   # Source genre
 GENRE_B = 'classical'  # Target genre
@@ -131,7 +135,7 @@ print(f"  Direction: {GENRE_A} → {GENRE_B}")
 print(f"  Epochs: {EPOCHS}")
 print(f"  Batch Size: {BATCH_SIZE}")
 print(f"  Res Blocks: {N_RES_BLOCKS}")
-print(f"  Mel Bins: 128 (updated for better vocal quality)")
+print(f"  Mel Bins: 80 (compatible with HiFi-GAN UNIVERSAL_V1)")
 
 #@title # 6. Train CycleGAN Model
 #{#}markdown

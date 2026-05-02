@@ -133,7 +133,7 @@ class MelToAudio:
         # Validate params match audiotomel.py
         expected = {
             'sampling_rate': 22050,
-            'num_mels':       128,    # changed from 80 for better vocal quality
+            'num_mels':       80,
             'n_fft':          1024,
             'hop_size':       256,
             'win_size':       1024,

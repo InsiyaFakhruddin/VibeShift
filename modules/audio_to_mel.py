@@ -9,7 +9,7 @@ def audio_to_mel(
     n_fft=1024,
     hop_length=256,
     win_length=1024,
-    n_mels=128,
+    n_mels=80,
     fmin=0,
     fmax=8000
 ):

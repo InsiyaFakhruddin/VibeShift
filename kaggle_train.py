@@ -2,7 +2,7 @@
 # VibeShift CycleGAN Training Script for Kaggle
 # ============================================================
 # This script trains CycleGAN for genre conversion using Kaggle GPU
-# Updated for n_mels=128 and new loss functions (MultiScaleSTFTLoss, weighted_mel_loss)
+# Updated for n_mels=80 and new loss functions (MultiScaleSTFTLoss, weighted_mel_loss)
 # 
 # Usage: 
 #   1. Upload this script as a Kaggle Notebook
@@ -79,13 +79,13 @@ else:
 GTZAN_MELS = f"{WORKING_DIR}/Data/mels"
 os.makedirs(GTZAN_MELS, exist_ok=True)
 
-#@title # 4. Convert Audio to Mel Spectrograms (128 mels)
+#@title # 4. Convert Audio to Mel Spectrograms (80 mels)
 from modules.audio_to_mel import audio_to_mel, verify_mel
 
 GENRES = ['blues', 'classical', 'country', 'disco', 
           'hiphop', 'jazz', 'metal', 'pop', 'reggae', 'rock']
 
-print("\nConverting audio to mel spectrograms (128 mels)...")
+print("\nConverting audio to mel spectrograms (80 mels)...")
 
 for genre in GENRES:
     in_dir  = os.path.join(GTZAN_AUDIO, genre) if GTZAN_AUDIO else None
@@ -104,7 +104,7 @@ for genre in GENRES:
                 continue
                 
             try:
-                mel = audio_to_mel(audio_path)  # Uses n_mels=128 by default
+                mel = audio_to_mel(audio_path)  # Uses n_mels=80 by default
                 verify_mel(mel, strict=True)     # Verify mel is in expected range
                 np.save(npy_path, mel.squeeze(0).numpy())
             except Exception as e:
@@ -114,7 +114,14 @@ for genre in GENRES:
     else:
         print(f"⚠️  {genre}: input directory not found")
 
-print("\n✅ Mel spectrograms ready (128 mels)!")
+print("\n✅ Mel spectrograms ready (80 mels)!")
+
+#@title # 4.5 Optional: Separate vocals using Demucs
+# Optional vocal separation for vocal/instrumental stem files.
+# Run this before training if you want preprocessed stems in `Data/gtzan_stems`.
+#
+# !pip install demucs
+# !python preprocess_data.py
 
 #@title # 5. Training Configuration - SET YOUR GENRES HERE
 # ============================================================
@@ -139,7 +146,7 @@ print(f"  Direction: {GENRE_A} → {GENRE_B}")
 print(f"  Epochs: {EPOCHS}")
 print(f"  Batch Size: {BATCH_SIZE}")
 print(f"  Res Blocks: {N_RES_BLOCKS}")
-print(f"  Mel Bins: 128 (updated for better vocal quality)")
+print(f"  Mel Bins: 80 (compatible with HiFi-GAN UNIVERSAL_V1)")
 print(f"{'='*65}")
 
 #@title # 6. Train CycleGAN Model

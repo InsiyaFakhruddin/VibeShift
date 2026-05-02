@@ -71,9 +71,31 @@ class Generator(nn.Module):
             nn.Tanh()
         )
 
+    def _match_input_shape(self, x, target_shape):
+        if x.shape == target_shape:
+            return x
+
+        delta_h = target_shape[2] - x.shape[2]
+        delta_w = target_shape[3] - x.shape[3]
+
+        # Crop if output is slightly larger than input
+        if delta_h < 0 or delta_w < 0:
+            x = x[:, :, :target_shape[2], :target_shape[3]]
+
+        # Pad if output is slightly smaller than input
+        if delta_h > 0 or delta_w > 0:
+            pad_left = 0
+            pad_right = max(delta_w, 0)
+            pad_top = 0
+            pad_bottom = max(delta_h, 0)
+            x = nn.functional.pad(x, (pad_left, pad_right, pad_top, pad_bottom), mode='reflect')
+
+        return x
+
     def forward(self, x):
         # Instance normalization: normalize each (mel, time) slice independently
         # Store stats so we can denormalize the output
+        orig_shape = x.shape
         mean = x.mean(dim=[1, 2], keepdim=True)   # mean over mel bins and time
         std  = x.std(dim=[1, 2], keepdim=True) + 1e-8
         x_norm = (x - mean) / std
@@ -81,6 +103,9 @@ class Generator(nn.Module):
         x = self.encoder(x_norm)
         x = self.res_blocks(x)
         x = self.decoder(x)
+
+        # Match output to the original input shape before denormalizing
+        x = self._match_input_shape(x, orig_shape)
 
         # Denormalize output back to the target domain's expected scale
         # Use the INPUT stats — the genre change should shift timbre, not energy

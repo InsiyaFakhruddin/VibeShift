@@ -49,7 +49,7 @@ class MultiScaleSTFTLoss(torch.nn.Module):
         return loss / len(self.fft_sizes)
 
 
-def weighted_mel_loss(pred, target, n_mels=128):
+def weighted_mel_loss(pred, target, n_mels=80):
     """
     Upweight the upper mel bins (vocals, high harmonics) in the loss.
     Lower bins (bass, kick drum) are easier to get right; upper bins are
@@ -67,8 +67,7 @@ class CycleGAN:
     """
     CycleGAN for GTZAN mel-spectrogram genre conversion.
 
-    Input/output: (B, 1, 128, T) — treated as 2D image (standard CycleGAN)
-    Changed from 80 to 128 mels for better vocal quality and formant preservation.
+    Input/output: (B, 1, 80, T) — treated as 2D image (standard CycleGAN)
 
     Optimized for 4GB GPU:
         - batch_size = 1
