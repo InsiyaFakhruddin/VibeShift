@@ -1,0 +1,4 @@
+node_modules/
+dist/
+*.min.js
+app/(tabs)/explore.tsx

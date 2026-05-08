@@ -3,6 +3,7 @@ vibeshift-env/
 venv/
 env/
 ENV/
+vibes_env/
 
 # Python cache
 __pycache__/
@@ -22,4 +23,20 @@ Thumbs.db
 
 # Temporary files
 *.tmp
+*.log
+
+# Large data and model files
+backend/checkpoints/
+backend/Data/
+output_songs/
+stems/
+test_cases/
+
+# Generated files
+*.wav
+*.mp3
+*.flac
+
+# Logs
+logs/
 *.log

@@ -1,0 +1,124 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Deep navy/purple futuristic theme */
+    --background: 240 45% 8%;
+    --foreground: 280 30% 95%;
+
+    --card: 245 40% 12%;
+    --card-foreground: 280 30% 95%;
+
+    --popover: 245 40% 10%;
+    --popover-foreground: 280 30% 95%;
+
+    /* Electric purple primary */
+    --primary: 280 75% 60%;
+    --primary-foreground: 280 30% 95%;
+
+    /* Neon green accent */
+    --accent: 160 80% 50%;
+    --accent-foreground: 240 45% 8%;
+
+    /* Magenta secondary */
+    --secondary: 330 75% 55%;
+    --secondary-foreground: 280 30% 95%;
+
+    --muted: 245 40% 15%;
+    --muted-foreground: 280 20% 65%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 280 30% 95%;
+
+    --border: 245 40% 20%;
+    --input: 245 40% 15%;
+    --ring: 280 75% 60%;
+
+    --radius: 1rem;
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(280 75% 60%) 0%, hsl(330 75% 55%) 100%);
+    --gradient-dark: linear-gradient(180deg, hsl(240 45% 8%) 0%, hsl(245 40% 12%) 100%);
+    --gradient-glow: radial-gradient(circle at center, hsl(280 75% 60% / 0.2) 0%, transparent 70%);
+    
+    /* Glows */
+    --glow-primary: 0 0 20px hsl(280 75% 60% / 0.5), 0 0 40px hsl(280 75% 60% / 0.3);
+    --glow-accent: 0 0 20px hsl(160 80% 50% / 0.5), 0 0 40px hsl(160 80% 50% / 0.3);
+    --glow-secondary: 0 0 20px hsl(330 75% 55% / 0.5), 0 0 40px hsl(330 75% 55% / 0.3);
+    
+    /* Animations */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    background: linear-gradient(180deg, hsl(240 45% 8%) 0%, hsl(245 40% 12%) 100%);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    overflow: hidden;
+  }
+  
+  /* Safe area padding for mobile devices */
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+@layer utilities {
+  .glass-card {
+    @apply backdrop-blur-xl bg-card/40 border border-primary/30 rounded-3xl;
+  }
+  
+  .glow-primary {
+    box-shadow: var(--glow-primary);
+  }
+  
+  .glow-accent {
+    box-shadow: var(--glow-accent);
+  }
+  
+  .glow-secondary {
+    box-shadow: var(--glow-secondary);
+  }
+  
+  .floating {
+    animation: float 3s ease-in-out infinite;
+  }
+  
+  .pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    filter: drop-shadow(0 0 8px hsl(280 75% 60% / 0.4));
+  }
+  50% {
+    filter: drop-shadow(0 0 20px hsl(280 75% 60% / 0.8));
+  }
+}
