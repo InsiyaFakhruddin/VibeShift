@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/context/AppearanceContext';
 import React from 'react';
 import { Platform, Pressable, StyleSheet, Text } from 'react-native';
 
@@ -6,11 +7,11 @@ type Props = {
 };
 
 export const UploadButton = ({ onUpload }: Props) => {
+  const t = useAppTheme();
+
   async function pickFile() {
-    // Dynamically import so bundlers don't fail when dependency isn't installed yet.
     try {
       if (Platform.OS === 'web') {
-        // On web, open a hidden file input using a synthetic click.
         const input = document.createElement('input');
         input.type = 'file';
         input.accept = 'audio/*';
@@ -33,13 +34,18 @@ export const UploadButton = ({ onUpload }: Props) => {
   }
 
   return (
-    <Pressable onPress={pickFile} style={styles.button}>
-      <Text style={styles.text}>Upload Song</Text>
+    <Pressable
+      onPress={pickFile}
+      style={({ pressed }) => [styles.button, { backgroundColor: pressed ? t.accentAlt : t.accent }]}
+    >
+      {({ pressed }) => (
+        <Text style={[styles.text, { opacity: pressed ? 0.9 : 1 }]}>Upload Song</Text>
+      )}
     </Pressable>
   );
 };
 
 const styles = StyleSheet.create({
-  button: { backgroundColor: '#0a84ff', height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, marginTop: 8 },
-  text: { color: '#fff', fontWeight: '600' },
+  button: { height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, marginTop: 8 },
+  text: { color: '#fff', fontWeight: '600', fontSize: 14 },
 });

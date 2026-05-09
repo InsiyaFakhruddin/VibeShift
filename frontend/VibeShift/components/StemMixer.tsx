@@ -1,4 +1,4 @@
-import { Theme } from '@/constants/theme';
+import { useAppTheme } from '@/context/AppearanceContext';
 import React from 'react';
 import { Dimensions, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Defs, Stop, LinearGradient as SvgLinearGradient } from 'react-native-svg';
@@ -24,6 +24,7 @@ interface StemMixerProps {
 }
 
 export const StemMixer = ({ stems, onStemDelete, onSettingsChange }: StemMixerProps) => {
+  const t = useAppTheme();
   const screenWidth = Dimensions.get('window').width;
   const screenHeight = Dimensions.get('window').height;
   
@@ -46,7 +47,7 @@ export const StemMixer = ({ stems, onStemDelete, onSettingsChange }: StemMixerPr
   if (stems.length === 0) {
     return (
       <View style={styles.emptyContainer}>
-        <Text style={styles.emptyText}>Upload a song to see stems</Text>
+        <Text style={[styles.emptyText, { color: t.subtitle }]}>Upload a song to see stems</Text>
       </View>
     );
   }
@@ -64,13 +65,13 @@ export const StemMixer = ({ stems, onStemDelete, onSettingsChange }: StemMixerPr
       >
         {/* Central music disc icon */}
         <View style={styles.centralIconWrapper}>
-          <View style={styles.discShadow}>
+          <View style={[styles.discShadow, { shadowColor: t.accent }]}>
             {/* Gradient circle background */}
             <Svg width={centerSvgSize} height={centerSvgSize} viewBox="0 0 120 120" style={styles.gradientCircle}>
               <Defs>
                 <SvgLinearGradient id="centerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <Stop offset="0%" stopColor={Theme.secondary} stopOpacity="1" />
-                  <Stop offset="100%" stopColor={Theme.accent} stopOpacity="1" />
+                  <Stop offset="0%" stopColor={t.accent} stopOpacity="1" />
+                  <Stop offset="100%" stopColor={t.accentAlt} stopOpacity="1" />
                 </SvgLinearGradient>
               </Defs>
               <Circle cx="60" cy="60" r="45" fill="url(#centerGradient)" opacity="0.9" />
@@ -125,7 +126,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   discShadow: {
-    shadowColor: Theme.secondary,
+    shadowColor: '#7c3aed',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,
     shadowRadius: 40,

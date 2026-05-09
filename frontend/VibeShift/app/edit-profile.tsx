@@ -1,56 +1,97 @@
+import { useAuth } from '@clerk/clerk-expo';
 import Icon from '@/components/Icon';
 import { ThemedView } from '@/components/themed-view';
 import { Theme } from '@/constants/theme';
+import { hexToRgba, useAppTheme } from '@/context/AppearanceContext';
+import { useProfile } from '@/context/UserContext';
 import { launchImageLibraryAsync, MediaTypeOptions } from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? '';
 
 export default function EditProfile() {
   const router = useRouter();
+  const { getToken } = useAuth();
+  const { profile, refreshProfile } = useProfile();
+
   const [profileImage, setProfileImage] = useState<string | null>(null);
-  const [name, setName] = useState('Insiya');
-  const [bio, setBio] = useState('Music enthusiast • Sound designer • AI explorer');
+  const [newImageBase64, setNewImageBase64] = useState<string | null>(null);
+  const [name, setName] = useState('');
+  const [bio, setBio] = useState('');
+  const t = useAppTheme();
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (profile) {
+      setName(profile.name ?? '');
+      setBio(profile.bio ?? '');
+      setProfileImage(profile.avatar_url ?? null);
+    }
+  }, [profile]);
 
   const pickImage = async () => {
     const result = await launchImageLibraryAsync({
       mediaTypes: MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 1,
+      quality: 0.3,
+      base64: true,
     });
 
-    if (!result.canceled) {
-      setProfileImage(result.assets[0].uri);
+    if (!result.canceled && result.assets[0].base64) {
+      const ext = result.assets[0].uri.split('.').pop()?.toLowerCase() ?? 'jpg';
+      const mime = ext === 'png' ? 'image/png' : 'image/jpeg';
+      const dataUri = `data:${mime};base64,${result.assets[0].base64}`;
+      setProfileImage(dataUri);
+      setNewImageBase64(dataUri);
     }
   };
 
   const handleSave = async () => {
     setIsSaving(true);
-    // Simulate save
-    setTimeout(() => {
+    try {
+      const token = await getToken();
+      const body: Record<string, string> = { name, bio };
+      if (newImageBase64) {
+        body.avatar_url = newImageBase64;
+      }
+      const res = await fetch(`${API_URL}/users/me`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
+        await refreshProfile();
+        Alert.alert('Saved', 'Profile updated successfully!');
+        router.back();
+      } else {
+        Alert.alert('Error', 'Failed to save profile. Please try again.');
+      }
+    } catch (err: any) {
+      Alert.alert('Error', String(err?.message ?? err));
+    } finally {
       setIsSaving(false);
-      alert('Profile updated successfully!');
-    }, 1000);
+    }
   };
 
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeContainer} edges={['top', 'left', 'right', 'bottom']}>
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { backgroundColor: t.headerBg, borderBottomColor: t.border }]}>
           <Pressable onPress={() => router.back()}>
-            <Icon name="arrow-right" size={24} color={Theme.primary} style={{ transform: [{ rotate: '180deg' }] }} />
+            <Icon name="arrow-right" size={24} color={t.accent} style={{ transform: [{ rotate: '180deg' }] }} />
           </Pressable>
-          <Text style={styles.headerTitle}>Edit Profile</Text>
+          <Text style={[styles.headerTitle, { color: t.text }]}>Edit Profile</Text>
           <View style={{ width: 24 }} />
         </View>
 
-        <LinearGradient colors={Theme.gradientDark as any} style={styles.background}>
-          <ScrollView 
+        <LinearGradient colors={t.gradient as any} style={styles.background}>
+          <ScrollView
             style={styles.scrollView}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
@@ -58,58 +99,59 @@ export default function EditProfile() {
             <View style={styles.content}>
               {/* Profile Image Section */}
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Profile Picture</Text>
+                <Text style={[styles.sectionTitle, { color: t.text }]}>Profile Picture</Text>
                 <TouchableOpacity style={styles.imageContainer} onPress={pickImage}>
                   {profileImage ? (
-                    <Image source={{ uri: profileImage }} style={styles.profileImage} />
+                    <Image source={{ uri: profileImage }} style={[styles.profileImage, { borderColor: t.accent }]} />
                   ) : (
-                    <View style={styles.placeholderImage}>
-                      <Icon name="user" size={48} color={Theme.primary} />
+                    <View style={[styles.placeholderImage, { backgroundColor: hexToRgba(t.accent, 0.12), borderColor: t.accent }]}>
+                      <Icon name="user" size={48} color={t.accent} />
                     </View>
                   )}
-                  <View style={styles.editBadge}>
+                  <View style={[styles.editBadge, { backgroundColor: t.accent }]}>
                     <Icon name="camera" size={14} color="#fff" />
                   </View>
                 </TouchableOpacity>
-                <Text style={styles.helperText}>Tap to change your profile picture</Text>
+                <Text style={[styles.helperText, { color: t.subtitle }]}>Tap to change your profile picture</Text>
               </View>
 
               {/* Name Section */}
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Display Name</Text>
-                <View style={styles.inputContainer}>
-                  <Icon name="user" size={18} color={Theme.primary} style={styles.inputIcon} />
+                <Text style={[styles.sectionTitle, { color: t.text }]}>Display Name</Text>
+                <View style={[styles.inputContainer, { borderColor: t.accent, backgroundColor: hexToRgba(t.accent, 0.05) }]}>
+                  <Icon name="user" size={18} color={t.accent} style={styles.inputIcon} />
                   <TextInput
-                    style={styles.textInput}
+                    style={[styles.textInput, { color: t.text }]}
                     placeholder="Your name"
-                    placeholderTextColor="rgba(255,255,255,0.4)"
+                    placeholderTextColor={t.subtitle}
                     value={name}
                     onChangeText={setName}
+                    maxLength={30}
                   />
                 </View>
-                <Text style={styles.helperText}>{name.length}/30 characters</Text>
+                <Text style={[styles.helperText, { color: t.subtitle }]}>{name.length}/30 characters</Text>
               </View>
 
               {/* Bio Section */}
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Bio</Text>
-                <View style={[styles.inputContainer, styles.bioContainer]}>
-                  <Icon name="edit-3" size={18} color={Theme.primary} style={styles.inputIcon} />
+                <Text style={[styles.sectionTitle, { color: t.text }]}>Bio</Text>
+                <View style={[styles.inputContainer, styles.bioContainer, { borderColor: t.accent, backgroundColor: hexToRgba(t.accent, 0.05) }]}>
+                  <Icon name="edit-3" size={18} color={t.accent} style={[styles.inputIcon, { alignSelf: 'flex-start', marginTop: 2 }]} />
                   <TextInput
-                    style={[styles.textInput, styles.bioInput]}
-                    placeholder="Tell us about yourself"
-                    placeholderTextColor="rgba(255,255,255,0.4)"
+                    style={[styles.textInput, styles.bioInput, { color: t.text }]}
+                    placeholder="Music enthusiast • Sound designer • AI explorer"
+                    placeholderTextColor={hexToRgba(t.accent, 0.45)}
                     value={bio}
                     onChangeText={setBio}
                     multiline
                     maxLength={150}
                   />
                 </View>
-                <Text style={styles.helperText}>{bio.length}/150 characters</Text>
+                <Text style={[styles.helperText, { color: t.subtitle }]}>{bio.length}/150 characters</Text>
               </View>
 
               {/* Save Button */}
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
                 onPress={handleSave}
                 disabled={isSaving}
@@ -146,7 +188,7 @@ const styles = StyleSheet.create({
   },
   background: { flex: 1, paddingHorizontal: 20 },
   scrollView: { flex: 1 },
-  scrollContent: { paddingBottom: 40 },
+  scrollContent: { paddingBottom: 40, paddingTop: 24 },
 
   content: {
     gap: 24,
@@ -161,7 +203,6 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
 
-  // Image Section
   imageContainer: {
     position: 'relative',
     width: 120,
@@ -200,7 +241,6 @@ const styles = StyleSheet.create({
     borderColor: '#1a1a2e',
   },
 
-  // Input Sections
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -212,7 +252,7 @@ const styles = StyleSheet.create({
     height: 48,
   },
   bioContainer: {
-    height: 100,
+    height: 110,
     alignItems: 'flex-start',
     paddingVertical: 12,
   },
@@ -226,8 +266,9 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   bioInput: {
-    paddingVertical: 8,
-    maxHeight: 80,
+    paddingVertical: 0,
+    textAlignVertical: 'top',
+    maxHeight: 90,
   },
   helperText: {
     fontSize: 12,
@@ -235,7 +276,6 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.5)',
   },
 
-  // Save Button
   saveButton: {
     marginTop: 16,
     paddingVertical: 14,

@@ -1,19 +1,20 @@
+import { useAuth } from '@clerk/clerk-expo';
+import GradientText from '@/components/GradientText';
 import Icon from '@/components/Icon';
 import { SongCard } from '@/components/SongCard';
 import { StemMixer } from '@/components/StemMixer';
 import { ThemedView } from '@/components/themed-view';
 import { UploadButton } from '@/components/UploadButton';
 import { Theme } from '@/constants/theme';
+import { hexToRgba, useAppTheme } from '@/context/AppearanceContext';
+import { useProfile } from '@/context/UserContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import { Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const previousSongs = [
-  { id: 1, title: 'Rock Anthem', duration: '4:23', editedDate: 'Yesterday' },
-  { id: 2, title: 'Jazz Night', duration: '5:01', editedDate: '3 days ago' },
-];
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? '';
 
 const availableStems = [
   { id: 'vocals', name: 'Vocals', icon: '🎤', color: 'secondary' },
@@ -30,9 +31,36 @@ const availableStems = [
 
 export default function Demixing() {
   const router = useRouter();
+  const { getToken } = useAuth();
+  const { profile } = useProfile();
+  const t = useAppTheme();
   const [isDemixed, setIsDemixed] = useState(false);
   const [stems, setStems] = useState<any[]>([]);
   const [showAddStemMenu, setShowAddStemMenu] = useState(false);
+  const [previousSongs, setPreviousSongs] = useState<{ id: string; title: string; editedDate: string }[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const token = await getToken();
+        const res = await fetch(`${API_URL}/library`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const demixed = (data.items ?? [])
+            .filter((i: any) => i.type === 'demix' && i.status === 'completed')
+            .slice(0, 3)
+            .map((i: any) => ({
+              id: i.id,
+              title: i.song_name,
+              editedDate: new Date(i.created_at).toLocaleDateString(),
+            }));
+          setPreviousSongs(demixed);
+        }
+      } catch (_) {}
+    })();
+  }, []);
 
   const handleUpload = (file: any) => {
     console.log('uploaded', file);
@@ -65,28 +93,28 @@ export default function Demixing() {
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeContainer} edges={['top', 'left', 'right', 'bottom']}>
-        <LinearGradient colors={Theme.gradientDark as any} style={styles.background}>
+        <LinearGradient colors={t.gradient as any} style={styles.background}>
           <View style={styles.header}>
             {/* VibeShift Header */}
             <View style={styles.headerTopRow}>
               <View style={styles.logoContainer}>
-                <View style={styles.logoBall}>
+                <View style={[styles.logoBall, { backgroundColor: t.accent, shadowColor: t.accent }]}>
                   <Icon name="disc-3" size={22} color="#fff" />
                 </View>
                 <View style={styles.headerTextGroup}>
-                  <Text style={styles.vibeShiftText}>VibeShift</Text>
-                  <Text style={styles.greetingText}>Hi Insiya</Text>
+                  <Text style={[styles.vibeShiftText, { color: t.text }]}>VibeShift</Text>
+                  <Text style={[styles.greetingText, { color: t.subtitle }]}>Hi {profile?.name || 'there'}</Text>
                 </View>
               </View>
               <Pressable onPress={() => router.push('/account-settings')}>
-                <Icon name="settings" size={24} color="rgba(255,255,255,0.6)" />
+                <Icon name="settings" size={24} color={t.subtitle} />
               </Pressable>
             </View>
 
             {/* Page Header */}
             <View style={styles.pageHeader}>
-              <Text style={styles.pageTitle}>Demix Music</Text>
-              <Text style={styles.pageSubtitle}>Separate into individual stems</Text>
+              <GradientText text="Demix Music" colors={[t.accent, t.accentAlt]} fontSize={28} height={38} style={{ width: '100%' }} align="center" />
+              <Text style={[styles.pageSubtitle, { color: t.subtitle }]}>Separate into individual stems</Text>
             </View>
           </View>
 
@@ -96,14 +124,19 @@ export default function Demixing() {
               <>
                 {/* PREVIOUSLY DEMIXED SECTION */}
                 <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Previously Demixed</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                    <View style={{ width: 3, height: 18, borderRadius: 2, backgroundColor: t.accentAlt }} />
+                    <Text style={[styles.sectionTitle, { color: t.text, marginBottom: 0 }]}>Previously Demixed</Text>
+                  </View>
                   <View style={styles.songsList}>
-                    {previousSongs.map((song) => (
-                      <SongCard 
-                        key={song.id} 
-                        title={song.title} 
-                        duration={song.duration} 
-                        editedDate={song.editedDate} 
+                    {previousSongs.length === 0 ? (
+                      <Text style={{ color: t.subtitle, fontSize: 13 }}>No previous demixes yet</Text>
+                    ) : previousSongs.map((song) => (
+                      <SongCard
+                        key={song.id}
+                        title={song.title}
+                        duration=""
+                        editedDate={song.editedDate}
                         onClick={() => {
                           const sampleStems = [
                             { id: 'stem-1', name: 'Vocals', icon: '🎤', color: 'secondary', settings: { volume: 75, pitch: 0, timbre: 50 } },
@@ -120,18 +153,28 @@ export default function Demixing() {
                 </View>
 
                 {/* UPLOAD CARD */}
-                <View style={styles.uploadCard}>
-                  <View style={styles.uploadIconContainer}>
-                    <Icon name="sparkles" size={32} color={Theme.primary} />
+                <View style={[styles.uploadCard, { backgroundColor: t.card, borderColor: t.accent, shadowColor: t.accent }]}>
+                  <View style={[styles.uploadIconContainer, {
+                    borderColor: t.accent,
+                    backgroundColor: hexToRgba(t.accent, 0.05),
+                    shadowColor: t.accentAlt,
+                    shadowOpacity: 0.4,
+                    shadowRadius: 14,
+                    elevation: 5,
+                  }]}>
+                    <Icon name="sparkles" size={32} color={t.accent} />
                   </View>
-                  <Text style={styles.uploadTitle}>Upload a Song</Text>
-                  <Text style={styles.uploadSubtitle}>Select an audio file to start</Text>
+                  <Text style={[styles.uploadTitle, { color: t.text }]}>Upload a Song</Text>
+                  <Text style={[styles.uploadSubtitle, { color: t.subtitle }]}>Select an audio file to start</Text>
                   <View style={styles.buttonRow}>
                     <View style={{ flex: 1 }}>
                       <UploadButton onUpload={handleUpload} />
                     </View>
-                    <Text 
-                      style={styles.previewButton}
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.previewButton,
+                        { backgroundColor: pressed ? t.accentAlt : t.accent },
+                      ]}
                       onPress={() => {
                         const sampleStems = [
                           { id: 'stem-1', name: 'Vocals', icon: '🎤', color: 'secondary', settings: { volume: 75, pitch: 0, timbre: 50 } },
@@ -143,16 +186,23 @@ export default function Demixing() {
                         setIsDemixed(true);
                       }}
                     >
-                      Try Demo
-                    </Text>
+                      <Text style={styles.previewButtonText}>Try Demo</Text>
+                    </Pressable>
                   </View>
                 </View>
               </>
             ) : (
               <View style={styles.demixContainer}>
                 {/* Demix Card */}
-                <View style={styles.demixCard}>
-                  <Text style={styles.cardHint}>Tap stem to select • Drag ring to adjust volume</Text>
+                <View style={[styles.demixCard, {
+                  borderColor: t.accent,
+                  backgroundColor: hexToRgba(t.accent, 0.05),
+                  shadowColor: t.accentAlt,
+                  shadowOpacity: 0.18,
+                  shadowRadius: 14,
+                  elevation: 4,
+                }]}>
+                  <Text style={[styles.cardHint, { color: t.subtitle }]}>Tap stem to select • Drag ring to adjust volume</Text>
                   
                   <StemMixer 
                     stems={stems}
@@ -163,43 +213,68 @@ export default function Demixing() {
 
                 {/* Action Buttons */}
                 <View style={styles.actionButtonsContainer}>
-                  <TouchableOpacity 
-                    style={styles.resetButton}
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.resetButton,
+                      {
+                        borderColor: pressed ? t.accentAlt : t.accent,
+                        backgroundColor: pressed ? hexToRgba(t.accentAlt, 0.12) : 'transparent',
+                      },
+                    ]}
                     onPress={() => setIsDemixed(false)}
                   >
-                    <Icon name="rotate-ccw" size={18} color={Theme.accent} />
-                  </TouchableOpacity>
+                    {({ pressed }) => (
+                      <Icon name="rotate-ccw" size={18} color={pressed ? t.accentAlt : t.accent} />
+                    )}
+                  </Pressable>
 
-                  <TouchableOpacity 
-                    style={styles.addStemButton}
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.addStemButton,
+                      {
+                        borderColor: pressed ? t.accentAlt : t.accent,
+                        backgroundColor: pressed ? hexToRgba(t.accentAlt, 0.12) : 'transparent',
+                      },
+                    ]}
                     onPress={() => setShowAddStemMenu(!showAddStemMenu)}
                   >
-                    <Icon name="plus" size={18} color={Theme.accent} />
-                    <Text style={styles.addStemButtonText}>Add Stem</Text>
-                  </TouchableOpacity>
-                  
+                    {({ pressed }) => (
+                      <>
+                        <Icon name="plus" size={18} color={pressed ? t.accentAlt : t.accent} />
+                        <Text style={[styles.addStemButtonText, { color: pressed ? t.accentAlt : t.accent }]}>Add Stem</Text>
+                      </>
+                    )}
+                  </Pressable>
+
                   {/* Add Stem Dropdown Menu */}
                   {showAddStemMenu && (
-                    <View style={styles.dropdownMenu}>
+                    <View style={[styles.dropdownMenu, { backgroundColor: t.card, borderColor: t.accent }]}>
                       {availableStems.map((stem) => (
-                        <TouchableOpacity
+                        <Pressable
                           key={stem.id}
-                          style={styles.dropdownItem}
+                          style={({ pressed }) => [
+                            styles.dropdownItem,
+                            { backgroundColor: pressed ? hexToRgba(t.accentAlt, 0.08) : 'transparent' },
+                          ]}
                           onPress={() => handleAddStem(stem)}
                         >
                           <Text style={styles.dropdownItemIcon}>{stem.icon}</Text>
-                          <Text style={styles.dropdownItemText}>{stem.name}</Text>
-                        </TouchableOpacity>
+                          <Text style={[styles.dropdownItemText, { color: t.text }]}>{stem.name}</Text>
+                        </Pressable>
                       ))}
                     </View>
                   )}
 
-                  <TouchableOpacity 
-                    style={styles.exportButton}
-                    onPress={() => alert('Song demixed successfully!')}
-                  >
-                    <Text style={styles.exportButtonText}>Export Track</Text>
-                  </TouchableOpacity>
+                  <Pressable style={{ flex: 1 }} onPress={() => alert('Song demixed successfully!')}>
+                    <LinearGradient
+                      colors={[t.accent, t.accentAlt]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={styles.exportButton}
+                    >
+                      <Text style={styles.exportButtonText}>Export Track</Text>
+                    </LinearGradient>
+                  </Pressable>
                 </View>
               </View>
             )}
@@ -335,13 +410,15 @@ const styles = StyleSheet.create({
   previewButton: {
     paddingVertical: 12,
     paddingHorizontal: 16,
-    backgroundColor: Theme.secondary,
     borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  previewButtonText: {
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
-    textAlign: 'center',
-    overflow: 'hidden',
   },
 
   // Demix Container
@@ -403,10 +480,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   exportButton: {
-    flex: 1,
     paddingVertical: 10,
     paddingHorizontal: 14,
-    backgroundColor: Theme.secondary,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
@@ -436,7 +511,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
+    borderBottomColor: 'rgba(128,128,128,0.15)',
   },
   dropdownItemIcon: {
     fontSize: 20,

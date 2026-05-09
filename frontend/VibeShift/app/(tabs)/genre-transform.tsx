@@ -1,18 +1,19 @@
+import { useAuth } from '@clerk/clerk-expo';
+import GradientText from '@/components/GradientText';
 import { GenreBubble } from '@/components/GenreBubble';
 import Icon from '@/components/Icon';
 import { SongCard } from '@/components/SongCard';
 import { ThemedView } from '@/components/themed-view';
 import { UploadButton } from '@/components/UploadButton';
 import { Theme } from '@/constants/theme';
+import { hexToRgba, useAppTheme } from '@/context/AppearanceContext';
+import { useProfile } from '@/context/UserContext';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const previousSongs = [
-  { id: 1, title: 'Electronic Dreams', duration: '3:45', editedDate: 'Yesterday' },
-  { id: 2, title: 'Acoustic Session', duration: '4:12', editedDate: '2 days ago' },
-];
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? '';
 
 const genres = [
   { id: 1, name: 'Pop', position: { x: 30, y: 25 } },
@@ -23,8 +24,35 @@ const genres = [
 ];
 
 export default function GenreTransform() {
+  const { getToken } = useAuth();
+  const { profile } = useProfile();
+  const t = useAppTheme();
   const [isTransforming, setIsTransforming] = useState(false);
   const [selectedGenre, setSelectedGenre] = useState<number | null>(null);
+  const [previousSongs, setPreviousSongs] = useState<{ id: string; title: string; editedDate: string }[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const token = await getToken();
+        const res = await fetch(`${API_URL}/library`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const transforms = (data.items ?? [])
+            .filter((i: any) => i.type === 'transform' && i.status === 'completed')
+            .slice(0, 3)
+            .map((i: any) => ({
+              id: i.id,
+              title: i.song_name,
+              editedDate: new Date(i.created_at).toLocaleDateString(),
+            }));
+          setPreviousSongs(transforms);
+        }
+      } catch (_) {}
+    })();
+  }, []);
 
   const handleUpload = (file: any) => {
     setIsTransforming(true);
@@ -50,7 +78,7 @@ export default function GenreTransform() {
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeContainer} edges={['top', 'left', 'right']}>
-        <LinearGradient colors={Theme.gradientDark as any} style={styles.background}>
+        <LinearGradient colors={t.gradient as any} style={styles.background}>
           <ScrollView 
             style={styles.scrollView}
             contentContainerStyle={styles.scrollContent}
@@ -60,42 +88,54 @@ export default function GenreTransform() {
               {/* Header */}
               <View style={styles.headerTopRow}>
                 <View style={styles.logoContainer}>
-                  <View style={styles.logoBall}>
+                  <View style={[styles.logoBall, { backgroundColor: t.accent, shadowColor: t.accent }]}>
                     <Icon name="disc-3" size={22} color="#fff" />
                   </View>
                   <View style={styles.headerTextGroup}>
-                    <Text style={styles.vibeShiftText}>VibeShift</Text>
-                    <Text style={styles.greetingText}>Hi Insiya</Text>
+                    <Text style={[styles.vibeShiftText, { color: t.accent }]}>VibeShift</Text>
+                    <Text style={[styles.greetingText, { color: t.subtitle }]}>Hi {profile?.name || 'there'}</Text>
                   </View>
                 </View>
-                <Icon name="settings" size={24} color="rgba(255,255,255,0.6)" />
+                <Icon name="settings" size={24} color={t.subtitle} />
               </View>
 
               {/* Page Title */}
               <View style={styles.pageHeader}>
-                <Text style={styles.pageTitle}>Genre Transform</Text>
-                <Text style={styles.pageSubtitle}>Transform into any genre</Text>
+                <GradientText text="Genre Transform" colors={[t.accent, t.accentAlt]} fontSize={28} height={38} style={{ width: '100%' }} align="center" />
+                <Text style={[styles.pageSubtitle, { color: t.subtitle }]}>Transform into any genre</Text>
               </View>
 
               {!isTransforming ? (
                 <View style={styles.contentArea}>
                   {/* Previously Transformed */}
                   <View style={styles.previousSection}>
-                    <Text style={styles.sectionTitle}>Previously Transformed</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                      <View style={{ width: 3, height: 18, borderRadius: 2, backgroundColor: t.accentAlt }} />
+                      <Text style={[styles.sectionTitle, { color: t.text, marginBottom: 0 }]}>Previously Transformed</Text>
+                    </View>
                     <View style={styles.songsList}>
-                      {previousSongs.map((song) => (
-                        <SongCard key={song.id} title={song.title} duration={song.duration} editedDate={song.editedDate} onClick={() => setIsTransforming(true)} />
+                      {previousSongs.length === 0 ? (
+                        <Text style={{ color: t.subtitle, fontSize: 13 }}>No previous transforms yet</Text>
+                      ) : previousSongs.map((song) => (
+                        <SongCard key={song.id} title={song.title} duration="" editedDate={song.editedDate} onClick={() => setIsTransforming(true)} />
                       ))}
                     </View>
                   </View>
 
                   {/* Upload Card */}
-                  <View style={styles.uploadCard}>
-                    <View style={styles.uploadIconContainer}>
-                      <Icon name="sparkles" size={36} color={Theme.primary} />
+                  <View style={[styles.uploadCard, { borderColor: t.accent, backgroundColor: t.card, shadowColor: t.accent }]}>
+                    <View style={[styles.uploadIconContainer, {
+                      borderColor: t.accent,
+                      backgroundColor: hexToRgba(t.accent, 0.05),
+                      shadowColor: t.accentAlt,
+                      shadowOpacity: 0.4,
+                      shadowRadius: 14,
+                      elevation: 5,
+                    }]}>
+                      <Icon name="sparkles" size={36} color={t.accent} />
                     </View>
-                    <Text style={styles.uploadTitle}>Upload a Song</Text>
-                    <Text style={styles.uploadSubtitle}>Select an audio file to transform</Text>
+                    <Text style={[styles.uploadTitle, { color: t.text }]}>Upload a Song</Text>
+                    <Text style={[styles.uploadSubtitle, { color: t.subtitle }]}>Select an audio file to transform</Text>
                     <UploadButton onUpload={handleUpload} />
                   </View>
                 </View>
@@ -103,8 +143,8 @@ export default function GenreTransform() {
                 <View style={styles.contentArea}>
                   <View style={styles.genreView}>
                     <View style={styles.genreHeader}>
-                      <Text style={styles.genreTitle}>Select a Genre</Text>
-                      <Text style={styles.genreSubtitle}>Tap to select</Text>
+                      <Text style={[styles.genreTitle, { color: t.text }]}>Select a Genre</Text>
+                      <Text style={[styles.genreSubtitle, { color: t.subtitle }]}>Tap to select</Text>
                     </View>
 
                     <View style={styles.bubbleContainer}>
@@ -116,8 +156,30 @@ export default function GenreTransform() {
 
                   {selectedGenre !== null && (
                     <View style={styles.actionsRow}>
-                      <Text onPress={handleDiscard}>Discard</Text>
-                      <Text onPress={handleSave}>Download</Text>
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.discardButton,
+                          {
+                            borderColor: pressed ? t.accentAlt : hexToRgba(t.accent, 0.4),
+                            backgroundColor: pressed ? hexToRgba(t.accentAlt, 0.08) : 'transparent',
+                          },
+                        ]}
+                        onPress={handleDiscard}
+                      >
+                        {({ pressed }) => (
+                          <Text style={{ color: pressed ? t.accentAlt : t.subtitle, fontSize: 13, fontWeight: '600' }}>Discard</Text>
+                        )}
+                      </Pressable>
+                      <Pressable style={{ flex: 1 }} onPress={handleSave}>
+                        <LinearGradient
+                          colors={[t.accent, t.accentAlt]}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 0 }}
+                          style={styles.downloadButton}
+                        >
+                          <Text style={styles.downloadButtonText}>Download</Text>
+                        </LinearGradient>
+                      </Pressable>
                     </View>
                   )}
                 </View>
@@ -283,8 +345,28 @@ const styles = StyleSheet.create({
   },
   actionsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'center',
     gap: 12,
     marginTop: 12,
+  },
+  discardButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  downloadButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  downloadButtonText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
   },
 });

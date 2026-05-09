@@ -23,3 +23,15 @@ gunicorn==21.2.0
 pydantic==2.5.0
 python-multipart==0.0.6
 boto3==1.28.85
+
+# Database
+sqlmodel==0.0.19
+
+# Auth (Clerk JWT verification)
+PyJWT[crypto]==2.8.0
+
+# HTTP client (calling Colab ML API)
+httpx==0.26.0
+
+# Env vars
+python-dotenv==1.0.0

@@ -1,6 +1,7 @@
+import { useAuth } from '@clerk/clerk-expo';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -10,21 +11,44 @@ import Icon from '@/components/Icon';
 import { SongCard } from '@/components/SongCard';
 import { ThemedView } from '@/components/themed-view';
 import { Theme } from '@/constants/theme';
+import { hexToRgba, useAppTheme } from '@/context/AppearanceContext';
+import { useProfile } from '@/context/UserContext';
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? '';
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { getToken } = useAuth();
+  const { profile } = useProfile();
+  const t = useAppTheme();
   const { width } = useWindowDimensions();
   const isWide = Platform.OS === 'web' ? width >= 900 : false;
-  const recentSongs = [
-    { id: 1, title: 'Summer Vibes', duration: '3:45', editedDate: '2 hours ago' },
-    { id: 2, title: 'Night Drive', duration: '4:12', editedDate: '1 day ago' },
-    { id: 3, title: 'Morning Coffee', duration: '2:58', editedDate: '2 days ago' },
-  ];
+  const [recentSongs, setRecentSongs] = useState<{ id: string; title: string; editedDate: string }[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const token = await getToken();
+        const res = await fetch(`${API_URL}/library`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const recent = (data.items ?? []).slice(0, 3).map((i: any) => ({
+            id: i.id,
+            title: i.song_name,
+            editedDate: new Date(i.created_at).toLocaleDateString(),
+          }));
+          setRecentSongs(recent);
+        }
+      } catch (_) {}
+    })();
+  }, []);
 
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeContainer} edges={['top', 'left', 'right']}>
-        <LinearGradient colors={Theme.gradientDark as any} style={styles.background}>
+        <LinearGradient colors={t.gradient as any} style={styles.background}>
           <ScrollView 
             style={styles.scrollView}
             contentContainerStyle={styles.scrollContent}
@@ -35,46 +59,48 @@ export default function HomeScreen() {
                 {/* VibeShift Header */}
                 <View style={styles.headerTopRow}>
                   <View style={styles.logoContainer}>
-                    <View style={styles.logoBall}>
+                    <View style={[styles.logoBall, { backgroundColor: t.accent, shadowColor: t.accent }]}>
                       <Icon name="disc-3" size={22} color="#fff" />
                     </View>
                     <View style={styles.headerTextGroup}>
-                      <Text style={styles.vibeShiftText}>VibeShift</Text>
-                      <Text style={styles.greetingText}>Hi Insiya</Text>
+                      <Text style={[styles.vibeShiftText, { color: t.accent }]}>VibeShift</Text>
+                      <Text style={[styles.greetingText, { color: t.subtitle }]}>Hi {profile?.name || 'there'}</Text>
                     </View>
                   </View>
                   <Pressable onPress={() => router.push('/account-settings')}>
-                    <Icon name="settings" size={24} color="rgba(255,255,255,0.6)" />
+                    <Icon name="settings" size={24} color={t.subtitle} />
                   </Pressable>
                 </View>
 
                 <View style={styles.headerCenter}>
-                  <GradientText text="Transform Your Music" colors={[Theme.primary, Theme.secondary]} fontSize={isWide ? 36 : 26} height={isWide ? 46 : 36} style={{ width: '100%' }} align="center" />
-                  <Text style={styles.hSubtitle}>Separate instruments, change genres with AI</Text>
+                  <GradientText text="Transform Your Music" colors={[t.accent, t.accentAlt]} fontSize={isWide ? 36 : 26} height={isWide ? 46 : 36} style={{ width: '100%' }} align="center" />
+                  <Text style={[styles.hSubtitle, { color: t.subtitle }]}>Separate instruments, change genres with AI</Text>
                 </View>
 
                 <View style={[styles.featuresArea, isWide && styles.featuresAreaWide]}>
-                  <FeatureCard 
-                    title="Music Demixing" 
-                    description="Separate vocals, drums, bass, and other instruments" 
-                    to="/demixing" 
-                    icon={<Icon name="music-2" size={24} color={Theme.primary} />}
-                    style={isWide ? styles.featureCardHalf : undefined} 
+                  <FeatureCard
+                    title="Music Demixing"
+                    description="Separate vocals, drums, bass, and other instruments"
+                    to="/demixing"
+                    icon={<Icon name="music-2" size={24} color={t.accent} />}
+                    style={isWide ? styles.featureCardHalf : undefined}
                   />
-                  <FeatureCard 
-                    title="Genre Transform" 
-                    description="Transform tracks into different genres with AI" 
-                    to="genre-transform" 
-                    icon={<Icon name="sparkles" size={24} color={Theme.primary} />}
-                    style={isWide ? styles.featureCardHalf : undefined} 
+                  <FeatureCard
+                    title="Genre Transform"
+                    description="Transform tracks into different genres with AI"
+                    to="genre-transform"
+                    icon={<Icon name="sparkles" size={24} color={t.accent} />}
+                    style={isWide ? styles.featureCardHalf : undefined}
                   />
                 </View>
 
                 <View style={styles.recentArea}>
-                  <Text style={[styles.recentTitle, { fontWeight: '700' }]}>Recently Edited</Text>
+                  <Text style={[styles.recentTitle, { fontWeight: '700', color: t.text }]}>Recently Edited</Text>
                   <View style={[styles.songsList, isWide && styles.songsListWide]}>
-                    {recentSongs.map((s) => (
-                      <SongCard key={s.id} title={s.title} duration={s.duration} editedDate={s.editedDate} onClick={() => {}} />
+                    {recentSongs.length === 0 ? (
+                      <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>No tracks yet — start demixing or transforming!</Text>
+                    ) : recentSongs.map((s) => (
+                      <SongCard key={s.id} title={s.title} duration="" editedDate={s.editedDate} onClick={() => router.push('/library')} />
                     ))}
                   </View>
                 </View>

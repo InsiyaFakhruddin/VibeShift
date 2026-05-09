@@ -1,5 +1,6 @@
 import { ThemedView } from '@/components/themed-view';
 import { Theme } from '@/constants/theme';
+import { useAppTheme } from '@/context/AppearanceContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { usePathname, useRouter } from 'expo-router';
 import React from 'react';
@@ -15,6 +16,7 @@ type Props = {
 export const Layout = ({ children, username = 'Insiya' }: Props) => {
   const router = useRouter();
   const pathname = usePathname();
+  const t = useAppTheme();
 
   // animated value for pulsing active indicator
   const pulse = React.useRef(new Animated.Value(0)).current;
@@ -39,7 +41,7 @@ export const Layout = ({ children, username = 'Insiya' }: Props) => {
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeHeader} edges={['top', 'left', 'right']}>
-        <LinearGradient colors={Theme.gradientDark as any} style={styles.header} start={[0, 0]} end={[1, 0]}>
+        <LinearGradient colors={t.gradient as any} style={styles.header} start={[0, 0]} end={[1, 0]}>
           <View style={styles.brandRow}>
             <View style={styles.logo}>
               <LinearGradient colors={[Theme.primary, Theme.secondary]} style={styles.logoGradient} start={[0,0]} end={[1,1]}>

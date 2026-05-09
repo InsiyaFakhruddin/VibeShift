@@ -1,130 +1,160 @@
+import { useAuth } from '@clerk/clerk-expo';
 import Icon from '@/components/Icon';
 import { ThemedView } from '@/components/themed-view';
-import { Theme } from '@/constants/theme';
 import GradientText from '@/components/GradientText';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect } from 'react';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { hexToRgba, useAppTheme } from '@/context/AppearanceContext';
+import { useProfile } from '@/context/UserContext';
 
 export default function Profile() {
   const router = useRouter();
-  const [pressedTab, setPressedTab] = useState<string | null>(null);
+  const { signOut } = useAuth();
+  const { profile, refreshProfile } = useProfile();
+  const t = useAppTheme();
+  const [pressedTab, setPressedTab] = React.useState<string | null>(null);
+
+  useEffect(() => { refreshProfile(); }, []);
+
+  const displayName = profile?.name || 'User';
+
+  async function handleSignOut() {
+    await signOut();
+    router.replace('/login');
+  }
 
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView style={[styles.container, { backgroundColor: t.headerBg }]}>
       <SafeAreaView style={styles.safeContainer} edges={['top', 'left', 'right']}>
-        <LinearGradient colors={Theme.gradientDark as any} style={styles.background}>
-          <ScrollView 
+        <LinearGradient colors={t.gradient as any} style={styles.background}>
+          <ScrollView
             style={styles.scrollView}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.contentWrap}>
-              {/* VibeShift Header */}
+              {/* Header */}
               <View style={styles.headerTopRow}>
                 <View style={styles.logoContainer}>
-                  <View style={styles.logoBall}>
+                  <View style={[styles.logoBall, { backgroundColor: t.accent, shadowColor: t.accent }]}>
                     <Icon name="disc-3" size={22} color="#fff" />
                   </View>
                   <View style={styles.headerTextGroup}>
-                    <GradientText 
-                      text="VibeShift" 
-                      colors={['#ec4981', '#22c55e']}
-                      fontSize={18}
-                      height={28}
-                      width="100%"
-                    />
-                    <Text style={styles.greetingText}>Hi Insiya</Text>
+                    <GradientText text="VibeShift" colors={[t.accent, t.accentAlt]} fontSize={18} height={28} width="100%" />
+                    <Text style={[styles.greetingText, { color: t.subtitle }]}>Hi {displayName}</Text>
                   </View>
                 </View>
                 <Pressable onPress={() => router.push('/account-settings')}>
-                  <Icon name="settings" size={24} color="rgba(255,255,255,0.6)" />
+                  <Icon name="settings" size={24} color={t.subtitle} />
                 </Pressable>
               </View>
 
               <View style={styles.innerBox}>
-                {/* Profile Header Card */}
-                <View style={styles.profileCard}>
-                  <LinearGradient
-                    colors={[Theme.primary, Theme.secondary, Theme.accent]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.avatarGradient}
-                  >
-                    <Icon name="user" size={28} color="#fff" />
-                  </LinearGradient>
+                {/* Profile Card */}
+                <View style={[styles.profileCard, { backgroundColor: t.card, borderColor: t.accent, shadowColor: t.accent }]}>
+                  {profile?.avatar_url ? (
+                    <Image source={{ uri: profile.avatar_url }} style={[styles.avatarImage, { borderColor: t.accent }]} />
+                  ) : (
+                    <LinearGradient
+                      colors={[t.accent, t.accentAlt]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={[styles.avatarGradient, { shadowColor: t.accentAlt }]}
+                    >
+                      <Icon name="user" size={28} color="#fff" />
+                    </LinearGradient>
+                  )}
                   <View style={{ alignItems: 'center', marginTop: 12 }}>
-                    <Text style={styles.nameText}>Insiya</Text>
-                    <Text style={styles.subtitleText}>Music Enthusiast</Text>
+                    <Text style={[styles.nameText, { color: t.text }]}>{displayName}</Text>
+                    {profile?.bio ? (
+                      <Text style={[styles.bioText, { color: t.accent }]}>{profile.bio}</Text>
+                    ) : (
+                      <Text style={[styles.subtitleText, { color: t.subtitle }]}>Music Enthusiast</Text>
+                    )}
                   </View>
                 </View>
 
-                {/* Stats Grid - 2 columns */}
+                {/* Stats Row — Tracks=primary accent, Genres=alt accent */}
                 <View style={styles.statsRow}>
-                  {/* Tracks Demixed */}
-                  <View style={styles.statCard}>
-                    <View style={[styles.statIcon, { backgroundColor: `${Theme.primary}20` }]}>
-                      <Icon name="music-2" size={20} color={Theme.primary} />
+                  <View style={[styles.statCard, { backgroundColor: t.card, borderColor: t.accent }]}>
+                    <View style={[styles.statIcon, {
+                      backgroundColor: hexToRgba(t.accent, 0.15),
+                      borderColor: t.accentAlt,
+                    }]}>
+                      <Icon name="music-2" size={20} color={t.accent} />
                     </View>
-                    <Text style={styles.statNumber}>24</Text>
-                    <Text style={styles.statLabel}>Tracks Demixed</Text>
+                    <Text style={[styles.statNumber, { color: t.accent }]}>{profile?.tracks_demixed ?? 0}</Text>
+                    <Text style={[styles.statLabel, { color: t.subtitle }]}>Tracks Demixed</Text>
                   </View>
 
-                  {/* Genres Changed */}
-                  <View style={styles.statCard}>
-                    <View style={[styles.statIcon, { backgroundColor: `${Theme.secondary}20` }]}>
-                      <Icon name="sparkles" size={20} color={Theme.secondary} />
+                  <View style={[styles.statCard, { backgroundColor: t.card, borderColor: t.accentAlt }]}>
+                    <View style={[styles.statIcon, {
+                      backgroundColor: hexToRgba(t.accentAlt, 0.15),
+                      borderColor: t.accent,
+                    }]}>
+                      <Icon name="sparkles" size={20} color={t.accentAlt} />
                     </View>
-                    <Text style={[styles.statNumber, { color: Theme.secondary }]}>18</Text>
-                    <Text style={styles.statLabel}>Genres Changed</Text>
+                    <Text style={[styles.statNumber, { color: t.accentAlt }]}>{profile?.genres_changed ?? 0}</Text>
+                    <Text style={[styles.statLabel, { color: t.subtitle }]}>Genres Changed</Text>
                   </View>
                 </View>
 
                 {/* Settings Section */}
                 <View style={styles.settingsSection}>
-                  <Text style={styles.settingsTitle}>Settings</Text>
-                  
-                  <Pressable 
-                    style={[styles.tabItem, pressedTab === 'account' && styles.tabItemActive]}
-                    onPress={() => router.push('/account-settings')}
-                    onPressIn={() => setPressedTab('account')}
-                    onPressOut={() => setPressedTab(null)}
-                  >
-                    <Icon name="settings" size={18} color={pressedTab === 'account' ? '#fff' : Theme.primary} />
-                    <Text style={[styles.tabText, pressedTab === 'account' && styles.tabTextActive]}>Account Settings</Text>
-                  </Pressable>
+                  <Text style={[styles.settingsTitle, { color: t.text }]}>Settings</Text>
 
-                  <Pressable 
-                    style={[styles.tabItem, pressedTab === 'audio' && styles.tabItemActive]}
-                    onPress={() => router.push('/audio-preferences')}
-                    onPressIn={() => setPressedTab('audio')}
-                    onPressOut={() => setPressedTab(null)}
-                  >
-                    <Icon name="music-2" size={18} color={pressedTab === 'audio' ? '#fff' : Theme.primary} />
-                    <Text style={[styles.tabText, pressedTab === 'audio' && styles.tabTextActive]}>Audio Preferences</Text>
-                  </Pressable>
-
-                  <Pressable 
-                    style={[styles.tabItem, pressedTab === 'appearance' && styles.tabItemActive]}
-                    onPress={() => router.push('/appearance')}
-                    onPressIn={() => setPressedTab('appearance')}
-                    onPressOut={() => setPressedTab(null)}
-                  >
-                    <Icon name="sparkles" size={18} color={pressedTab === 'appearance' ? '#fff' : Theme.primary} />
-                    <Text style={[styles.tabText, pressedTab === 'appearance' && styles.tabTextActive]}>Appearance</Text>
-                  </Pressable>
-
-                  <Pressable 
-                    style={[styles.tabItem, styles.loginButton, pressedTab === 'login' && styles.tabItemActive]}
-                    onPress={() => router.push('/login')}
-                    onPressIn={() => setPressedTab('login')}
-                    onPressOut={() => setPressedTab(null)}
-                  >
-                    <Icon name="log-in" size={18} color={pressedTab === 'login' ? '#fff' : Theme.primary} />
-                    <Text style={[styles.tabText, styles.loginButtonText, pressedTab === 'login' && styles.tabTextActive]}>Login / Sign Up</Text>
-                  </Pressable>
+                  {(['account', 'audio', 'appearance', 'signout'] as const).map((key) => {
+                    const config = {
+                      account:    { label: 'Account Settings', icon: 'settings',   route: '/account-settings' },
+                      audio:      { label: 'Audio Preferences', icon: 'music-2',   route: '/audio-preferences' },
+                      appearance: { label: 'Appearance',        icon: 'sparkles',  route: '/appearance' },
+                      signout:    { label: 'Sign Out',           icon: 'log-out',   route: null },
+                    }[key];
+                    const pressed = pressedTab === key;
+                    const isSignOut = key === 'signout';
+                    return (
+                      <Pressable
+                        key={key}
+                        style={[
+                          styles.tabItem,
+                          {
+                            backgroundColor: pressed ? hexToRgba(t.accent, 0.1) : t.card,
+                            borderColor: pressed ? t.accentAlt : (isSignOut ? t.accent : t.border),
+                          },
+                        ]}
+                        onPress={() => {
+                          if (isSignOut) handleSignOut();
+                          else router.push(config.route as any);
+                        }}
+                        onPressIn={() => setPressedTab(key)}
+                        onPressOut={() => setPressedTab(null)}
+                      >
+                        {/* Icon with ring — ring switches accent on press */}
+                        <View style={[
+                          styles.tabIconRing,
+                          {
+                            backgroundColor: pressed ? hexToRgba(t.accentAlt, 0.15) : hexToRgba(t.accent, 0.1),
+                            borderColor: pressed ? t.accentAlt : hexToRgba(t.accent, 0.35),
+                          },
+                        ]}>
+                          <Icon
+                            name={config.icon}
+                            size={17}
+                            color={pressed ? t.accentAlt : t.accent}
+                          />
+                        </View>
+                        <Text style={[
+                          styles.tabText,
+                          { color: pressed ? t.accent : (isSignOut ? t.accent : t.text) },
+                        ]}>
+                          {config.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
                 </View>
               </View>
             </View>
@@ -142,236 +172,55 @@ const styles = StyleSheet.create({
   scrollView: { flex: 1 },
   scrollContent: { paddingBottom: 20 },
   contentWrap: { flex: 1 },
-  
-  // Header
-  headerTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 24,
-  },
-  logoContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
+
+  headerTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
+  logoContainer: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   logoBall: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: Theme.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: Theme.primary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.6,
-    shadowRadius: 16,
-    elevation: 12,
+    width: 48, height: 48, borderRadius: 12,
+    alignItems: 'center', justifyContent: 'center',
+    shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.6, shadowRadius: 16, elevation: 12,
   },
-  headerTextGroup: {
-    justifyContent: 'center',
-  },
-  vibeShiftText: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: Theme.primary,
-  },
-  greetingText: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.65)',
-    marginTop: 2,
-  },
+  headerTextGroup: { justifyContent: 'center' },
+  greetingText: { fontSize: 13, marginTop: 2 },
 
-  // Inner content
   innerBox: { flex: 1, gap: 20 },
-  
-  // Profile Header
+
   profileCard: {
-    alignItems: 'center',
-    paddingVertical: 24,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    backgroundColor: Theme.card,
-    borderWidth: 1,
-    borderColor: Theme.primary,
-    overflow: 'hidden',
-    shadowColor: Theme.primary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 6,
+    alignItems: 'center', paddingVertical: 24, paddingHorizontal: 16,
+    borderRadius: 20, borderWidth: 1, overflow: 'hidden',
+    shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.25, shadowRadius: 10, elevation: 6,
   },
-  
   avatarGradient: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: Theme.primary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 14,
-    elevation: 8,
+    width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center',
+    shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.3, shadowRadius: 14, elevation: 8,
   },
-  
-  nameText: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#fff',
-    marginBottom: 4,
-  },
-  
-  subtitleText: {
-    fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.65)',
-  },
+  avatarImage: { width: 80, height: 80, borderRadius: 40, borderWidth: 2 },
+  nameText: { fontSize: 22, fontWeight: '700', marginBottom: 4 },
+  subtitleText: { fontSize: 13 },
+  bioText: { fontSize: 13, textAlign: 'center', paddingHorizontal: 16 },
 
-  // Stats Grid
-  statsRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-
+  statsRow: { flexDirection: 'row', gap: 12 },
   statCard: {
-    flex: 1,
-    paddingVertical: 16,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    alignItems: 'center',
-    backgroundColor: Theme.card,
-    borderWidth: 1,
-    borderColor: Theme.primary,
-    overflow: 'hidden',
+    flex: 1, paddingVertical: 16, paddingHorizontal: 12,
+    borderRadius: 16, alignItems: 'center', borderWidth: 1, overflow: 'hidden',
   },
-
   statIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderWidth: 1,
-    borderColor: Theme.primary,
+    width: 40, height: 40, borderRadius: 10, alignItems: 'center',
+    justifyContent: 'center', marginBottom: 8, borderWidth: 1,
   },
+  statNumber: { fontSize: 20, fontWeight: '700', marginBottom: 4 },
+  statLabel: { fontSize: 11, textAlign: 'center' },
 
-  statNumber: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: Theme.primary,
-    marginBottom: 4,
-  },
-
-  statLabel: {
-    fontSize: 11,
-    color: 'rgba(255, 255, 255, 0.6)',
-    textAlign: 'center',
-  },
-
-  // Settings
-  settingsSection: {
-    gap: 12,
-  },
-
-  settingsTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
-    marginBottom: 8,
-  },
-
-  tabBar: {
-    flexDirection: 'column',
-    gap: 8,
-  },
-
+  settingsSection: { gap: 12 },
+  settingsTitle: { fontSize: 16, fontWeight: '600', marginBottom: 8 },
   tabItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 16,
-    backgroundColor: Theme.card,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    overflow: 'hidden',
+    flexDirection: 'row', alignItems: 'center',
+    paddingVertical: 14, paddingHorizontal: 16,
+    borderRadius: 16, borderWidth: 1, overflow: 'hidden', gap: 12,
   },
-
-  tabItemActive: {
-    backgroundColor: Theme.accent,
-    borderColor: Theme.accent,
+  tabIconRing: {
+    width: 36, height: 36, borderRadius: 10,
+    alignItems: 'center', justifyContent: 'center', borderWidth: 1.5,
   },
-
-  tabText: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: 'rgba(255, 255, 255, 0.7)',
-    marginLeft: 12,
-  },
-
-  tabTextActive: {
-    color: '#fff',
-    fontWeight: '600',
-  },
-
-  loginButton: {
-    marginTop: 16,
-    borderColor: Theme.primary,
-  },
-
-  loginButtonText: {
-    color: Theme.primary,
-  },
-
-  tabContent: {
-    marginTop: 12,
-    padding: 16,
-    borderRadius: 16,
-    backgroundColor: Theme.card,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-
-  contentTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: 'rgba(255,255,255,0.6)',
-    marginBottom: 12,
-    letterSpacing: 1,
-  },
-
-  settingOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 0,
-    marginBottom: 12,
-  },
-
-  optionIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-
-  optionInfo: {
-    flex: 1,
-  },
-
-  optionTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#fff',
-    marginBottom: 4,
-  },
-
-  optionSubtitle: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.6)',
-  },
+  tabText: { fontSize: 15, fontWeight: '500' },
 });

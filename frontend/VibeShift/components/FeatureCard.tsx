@@ -1,8 +1,7 @@
-import { ThemedText } from '@/components/themed-text';
-import { Theme } from '@/constants/theme';
+import { hexToRgba, useAppearance, useAppTheme } from '@/context/AppearanceContext';
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { Animated, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Animated, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Icon from './Icon';
 
 type Props = {
@@ -14,11 +13,14 @@ type Props = {
   style?: any;
 };
 
-export function FeatureCard({ title, description, icon, to, gradient = 'primary', style }: Props) {
+export function FeatureCard({ title, description, icon, to, style }: Props) {
   const router = useRouter();
+  const { accentColor, animationsEnabled } = useAppearance();
+  const t = useAppTheme();
   const scale = React.useRef(new Animated.Value(1)).current;
 
   function animateHover(toValue: number) {
+    if (!animationsEnabled) return;
     Animated.spring(scale, { toValue, useNativeDriver: false, friction: 8 }).start();
   }
 
@@ -31,21 +33,20 @@ export function FeatureCard({ title, description, icon, to, gradient = 'primary'
       onPressOut={() => animateHover(1)}
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}
     >
-      <Animated.View style={[styles.animatedWrap, style, { transform: [{ scale }], width: '100%' }]}>
-        <View style={styles.hollowCard}>
-          <View style={styles.leftIcon}>{icon}</View>
+      <Animated.View style={[styles.animatedWrap, style, { transform: [{ scale }], width: '100%', shadowColor: accentColor }]}>
+        <View style={[styles.hollowCard, { borderColor: accentColor, backgroundColor: t.card }]}>
+          <View style={[styles.leftIcon, { borderColor: accentColor, backgroundColor: hexToRgba(accentColor, 0.08) }]}>{icon}</View>
           <View style={styles.body}>
-            <ThemedText style={styles.title} type="defaultSemiBold">
-              {title}
-            </ThemedText>
-            {description ? <ThemedText style={styles.desc}>{description}</ThemedText> : null}
+            <Text style={[styles.title, { color: t.text }]}>{title}</Text>
+            {description ? <Text style={[styles.desc, { color: t.subtitle }]}>{description}</Text> : null}
           </View>
-          <Icon name="arrow-right" size={20} color={Theme.primary} style={styles.arrow} />
+          <Icon name="arrow-right" size={20} color={accentColor} style={styles.arrow} />
         </View>
       </Animated.View>
     </Pressable>
   );
 }
+
 const styles = StyleSheet.create({
   card: {
     borderRadius: 20,
@@ -54,15 +55,12 @@ const styles = StyleSheet.create({
   },
   animatedWrap: {
     borderRadius: 20,
-    shadowColor: Theme.primary,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.3,
     shadowRadius: 10,
     elevation: 8,
   },
-  pressed: {
-    opacity: 0.95,
-  },
+  pressed: { opacity: 0.95 },
   hollowCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -71,7 +69,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: '#1a1a2e',
     borderWidth: 1,
-    borderColor: Theme.primary,
     overflow: 'hidden',
   },
   leftIcon: {
@@ -80,16 +77,13 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
     marginRight: 16,
     borderWidth: 1,
-    borderColor: Theme.primary,
     overflow: 'hidden',
   },
-  wideCard: { flex: 1, marginHorizontal: 8 },
-  body: { flex: 1 },
+  body:  { flex: 1 },
   title: { fontSize: 18, color: '#fff', fontWeight: '600' },
-  desc: { fontSize: 13, marginTop: 4, color: 'rgba(255,255,255,0.7)' },
+  desc:  { fontSize: 13, marginTop: 4, color: 'rgba(255,255,255,0.7)' },
   arrow: { marginLeft: 8 },
 });
-

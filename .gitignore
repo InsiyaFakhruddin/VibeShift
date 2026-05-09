@@ -1,3 +1,9 @@
+# Environment / secrets — NEVER commit these
+.env
+.env.local
+backend/.env
+frontend/VibeShift/.env
+
 # Virtual environments
 vibeshift-env/
 venv/

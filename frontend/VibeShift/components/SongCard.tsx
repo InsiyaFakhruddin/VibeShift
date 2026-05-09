@@ -1,5 +1,6 @@
 import { ThemedText } from '@/components/themed-text';
 import { Theme } from '@/constants/theme';
+import { useAppearance, useAppTheme } from '@/context/AppearanceContext';
 import React, { useEffect } from 'react';
 import { Animated, Platform, Pressable, StyleSheet, View } from 'react-native';
 import Icon from './Icon';
@@ -11,50 +12,46 @@ type Props = {
   onClick?: () => void;
 };
 
-// Animated equalizer bar component
-function EqualizerBar({ delay, maxHeight }: { delay: number; maxHeight: number }) {
+function EqualizerBar({ delay, maxHeight, color, enabled }: { delay: number; maxHeight: number; color: string; enabled: boolean }) {
   const scaleY = React.useRef(new Animated.Value(0.3)).current;
+  const loopRef = React.useRef<Animated.CompositeAnimation | null>(null);
 
   useEffect(() => {
-    // Start animation after delay
+    if (!enabled) {
+      loopRef.current?.stop();
+      scaleY.setValue(0.3);
+      return;
+    }
     const timer = setTimeout(() => {
-      Animated.loop(
+      loopRef.current = Animated.loop(
         Animated.sequence([
-          Animated.timing(scaleY, {
-            toValue: 1,
-            duration: 500,
-            useNativeDriver: true,
-          }),
-          Animated.timing(scaleY, {
-            toValue: 0.3,
-            duration: 500,
-            useNativeDriver: true,
-          }),
+          Animated.timing(scaleY, { toValue: 1,   duration: 500, useNativeDriver: true }),
+          Animated.timing(scaleY, { toValue: 0.3, duration: 500, useNativeDriver: true }),
         ])
-      ).start();
+      );
+      loopRef.current.start();
     }, delay * 100);
-
-    return () => clearTimeout(timer);
-  }, [scaleY, delay]);
+    return () => {
+      clearTimeout(timer);
+      loopRef.current?.stop();
+    };
+  }, [enabled, scaleY, delay]);
 
   return (
     <Animated.View
       style={[
         styles.eqBar,
-        {
-          height: `${maxHeight}%`,
-          transform: [{ scaleY }],
-          transformOrigin: 'center',
-        },
+        { height: `${maxHeight}%`, backgroundColor: color, transform: [{ scaleY }] },
       ]}
     />
   );
 }
 
 export function SongCard({ title, duration, editedDate, onClick }: Props) {
+  const { accentColor, accentAltColor, animationsEnabled } = useAppearance();
+  const t = useAppTheme();
   const scale = React.useRef(new Animated.Value(1)).current;
 
-  // Random heights for 5 bars (between 20-60%)
   const barHeights = React.useMemo(() => [
     Math.floor(Math.random() * 40) + 20,
     Math.floor(Math.random() * 40) + 20,
@@ -62,8 +59,9 @@ export function SongCard({ title, duration, editedDate, onClick }: Props) {
     Math.floor(Math.random() * 40) + 20,
     Math.floor(Math.random() * 40) + 20,
   ], []);
-  
+
   function animate(toValue: number) {
+    if (!animationsEnabled) return;
     Animated.spring(scale, { toValue, useNativeDriver: false, friction: 8 }).start();
   }
 
@@ -74,22 +72,17 @@ export function SongCard({ title, duration, editedDate, onClick }: Props) {
       onHoverOut={() => Platform.OS === 'web' && animate(1)}
       onPressIn={() => animate(0.98)}
       onPressOut={() => animate(1)}
-      style={({ pressed }) => [styles.container, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.container, { borderColor: accentColor, backgroundColor: t.card }, pressed && styles.pressed]}
     >
       <Animated.View style={{ transform: [{ scale }] }}>
-        <View style={styles.left}>
-          {/* Animated equalizer background */}
+        <View style={[styles.left, { borderColor: accentColor }]}>
           <View style={styles.equalizerBg}>
-            <EqualizerBar delay={0} maxHeight={barHeights[0]} />
-            <EqualizerBar delay={1} maxHeight={barHeights[1]} />
-            <EqualizerBar delay={2} maxHeight={barHeights[2]} />
-            <EqualizerBar delay={3} maxHeight={barHeights[3]} />
-            <EqualizerBar delay={4} maxHeight={barHeights[4]} />
+            {barHeights.map((h, i) => (
+              <EqualizerBar key={i} delay={i} maxHeight={h} color={accentAltColor} enabled={animationsEnabled} />
+            ))}
           </View>
-          
-          {/* Music icon on top - solid, full opacity */}
           <View style={styles.iconOverlay}>
-            <Icon name="music-2" size={20} color={Theme.primary} />
+            <Icon name="music-2" size={20} color={accentColor} />
           </View>
         </View>
       </Animated.View>
@@ -97,12 +90,12 @@ export function SongCard({ title, duration, editedDate, onClick }: Props) {
       <View style={styles.meta}>
         <ThemedText style={styles.title} type="defaultSemiBold">{title}</ThemedText>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          {duration ? <ThemedText style={styles.sub}>{duration}</ThemedText> : null}
-          {duration && editedDate ? <View style={{ width: 6, height: 6, borderRadius: 6, backgroundColor: 'rgba(255,255,255,0.6)', marginHorizontal: 8 }} /> : null}
-          {editedDate ? <ThemedText style={styles.sub}>{editedDate}</ThemedText> : null}
+          {duration ? <ThemedText style={[styles.sub, { color: t.subtitle }]}>{duration}</ThemedText> : null}
+          {duration && editedDate ? <View style={{ width: 6, height: 6, borderRadius: 6, backgroundColor: t.subtitle, marginHorizontal: 8 }} /> : null}
+          {editedDate ? <ThemedText style={[styles.sub, { color: t.subtitle }]}>{editedDate}</ThemedText> : null}
         </View>
       </View>
-      <Icon name="clock" size={14} color="rgba(255,255,255,0.6)" />
+      <Icon name="clock" size={14} color={t.subtitle} />
     </Pressable>
   );
 }
@@ -116,7 +109,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: Theme.card,
     borderWidth: 1,
-    borderColor: Theme.primary,
     overflow: 'hidden',
   },
   pressed: { opacity: 0.9 },
@@ -128,8 +120,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 14,
     borderWidth: 1,
-    borderColor: Theme.primary,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
     overflow: 'hidden',
   },
   equalizerBg: {
@@ -144,7 +135,6 @@ const styles = StyleSheet.create({
   },
   eqBar: {
     width: 2,
-    backgroundColor: Theme.primary,
     borderRadius: 1,
     opacity: 0.25,
   },
@@ -156,17 +146,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 1,
   },
-  meta: {
-    flex: 1,
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  sub: {
-    fontSize: 12,
-    marginTop: 4,
-    color: 'rgba(255,255,255,0.6)',
-  },
+  meta: { flex: 1 },
+  title: { fontSize: 16, fontWeight: '500' },
+  sub:   { fontSize: 12, marginTop: 4, color: 'rgba(255,255,255,0.6)' },
 });
-
