@@ -50,16 +50,15 @@ app.include_router(library_router)
 def on_startup():
     create_db_and_tables()
     print("✅ Database tables ready")
-    ml_url = os.getenv("ML_API_URL", "")
-    if ml_url:
-        print(f"✅ ML API connected: {ml_url}")
+    if os.getenv("REPLICATE_API_TOKEN"):
+        print("✅ Replicate API token loaded")
     else:
-        print("⚠️  ML_API_URL not set — start Colab notebook and update backend/.env")
+        print("⚠️  REPLICATE_API_TOKEN not set — add it to backend/.env")
 
 
 @app.get("/health", tags=["system"])
 def health():
     return {
         "status": "ok",
-        "ml_api_url": os.getenv("ML_API_URL", "not set"),
+        "replicate": "configured" if os.getenv("REPLICATE_API_TOKEN") else "missing",
     }

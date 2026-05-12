@@ -27,9 +27,11 @@ def sync_user(
     user = session.exec(select(User).where(User.clerk_user_id == clerk_user_id)).first()
     if user:
         user.email = body.email
-        if body.name:
+        # Only set name if the user hasn't already set one themselves.
+        # This prevents every login from overwriting a manually-edited display name.
+        if body.name and not user.name:
             user.name = body.name
-        if body.avatar_url:
+        if body.avatar_url and not user.avatar_url:
             user.avatar_url = body.avatar_url
         user.updated_at = datetime.utcnow()
     else:

@@ -3,34 +3,29 @@ from sqlmodel import Session, select
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
+import sys
+import io
 import os
+import numpy as np
+import soundfile as sf
 import httpx
+from pathlib import Path
+
+# editor.py lives in backend/modules/demixer/ — add that directory to path once at import time
+sys.path.insert(0, str(Path(__file__).parent.parent / "modules" / "demixer"))
+from editor import load_audio, pitch_shift_audio, change_timbre_simple
 
 from database import User, DemixJob, Stem, DemixMix, get_session, engine
 from auth import get_current_user
 import storage
+from replicate_client import call_demucs
 
 router = APIRouter(prefix="/demixer", tags=["demixer"])
 
-GENRE_PROMPTS = {
-    "blues": "blues music, slide guitar, harmonica, soulful vocals, slow rhythm",
-    "classical": "classical orchestral music, strings, piano, symphony, elegant",
-    "country": "country music, acoustic guitar, banjo, twang, fiddle, storytelling",
-    "disco": "disco music, funky bass guitar, four-on-the-floor drums, synthesizer, dance",
-    "hiphop": "hip hop music, boom bap drums, heavy bass, rap, urban, drum machine",
-    "jazz": "jazz music, piano, upright bass, trumpet, swing, improvisation",
-    "metal": "heavy metal, distorted electric guitar, double bass drum, aggressive, loud",
-    "pop": "pop music, catchy hook, synthesizer, polished production, upbeat, chorus",
-    "reggae": "reggae music, offbeat guitar, bass, relaxed, jamaican, one drop rhythm",
-    "rock": "rock music, electric guitar, live drums, bass, energetic, band performance",
-}
 
-
-# ── Background task ─────────────────────────────────────────────────────────
+# ── Background task: Replicate Demucs → 4 stems → S3 ────────────────────────
 
 async def _run_separation(job_id: str, s3_key: str, filename: str, export_format: str = "wav"):
-    ml_url = os.getenv("ML_API_URL", "").rstrip("/")
-
     with Session(engine) as session:
         job = session.get(DemixJob, job_id)
         if not job:
@@ -41,26 +36,32 @@ async def _run_separation(job_id: str, s3_key: str, filename: str, export_format
         session.commit()
 
     try:
-        if not ml_url:
-            raise RuntimeError(
-                "ML_API_URL is not set. Start your Colab notebook and paste the ngrok URL into backend/.env"
-            )
+        # Pass Replicate a presigned S3 URL — it fetches the file directly
+        audio_url = storage.get_presigned_url(s3_key)
 
-        audio_bytes = storage.download_bytes(s3_key)
+        # Replicate Demucs → {"vocals": url, "drums": url, "bass": url, "other": url}
+        stem_urls = await call_demucs(audio_url, model_name="htdemucs")
 
-        async with httpx.AsyncClient(timeout=300.0) as client:
-            resp = await client.post(
-                f"{ml_url}/separate",
-                files={"audio_file": (filename, audio_bytes, storage.content_type_for(filename))},
-                data={"job_id": job_id, "export_format": export_format},
-            )
-            resp.raise_for_status()
-            result = resp.json()
+        # Download each stem from Replicate and store permanently in S3
+        # htdemucs returns guitar/piano as null — skip any None URLs
+        uploaded: dict = {}  # stem_type -> s3_key
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            for stem_type, url in stem_urls.items():
+                if not url:
+                    continue
+                resp = await client.get(url)
+                resp.raise_for_status()
+                stem_s3_key = f"stems/{job_id}/{stem_type}.wav"
+                storage.upload_bytes(resp.content, stem_s3_key, "audio/wav")
+                uploaded[stem_type] = stem_s3_key
 
-        # result: {"stems": {"vocals": "<s3_key>", "drums": "...", ...}}
         with Session(engine) as session:
-            for stem_type, stem_s3_key in result["stems"].items():
-                session.add(Stem(job_id=job_id, stem_type=stem_type, original_s3_key=stem_s3_key))
+            for stem_type, stem_s3_key in uploaded.items():
+                session.add(Stem(
+                    job_id=job_id,
+                    stem_type=stem_type,
+                    original_s3_key=stem_s3_key,
+                ))
             job = session.get(DemixJob, job_id)
             job.status = "completed"
             job.updated_at = datetime.utcnow()
@@ -78,48 +79,75 @@ async def _run_separation(job_id: str, s3_key: str, filename: str, export_format
                 session.commit()
 
 
-async def _run_mix(job_id: str, mix_id: str, export_format: str = "wav"):
-    ml_url = os.getenv("ML_API_URL", "").rstrip("/")
+# ── Background task: local mix via editor.py + numpy ─────────────────────────
 
+async def _run_mix(job_id: str, mix_id: str, export_format: str = "wav"):
     with Session(engine) as session:
         stems = session.exec(select(Stem).where(Stem.job_id == job_id)).all()
-        stems_payload = [
+        stem_records = [
             {
-                "s3_key": s.modified_s3_key or s.original_s3_key,
-                "stem_type": s.stem_type,
-                "pitch_shift": s.pitch_shift,
+                "s3_key":          s.modified_s3_key or s.original_s3_key,
+                "pitch_shift":     s.pitch_shift,
                 "timbre_strength": s.timbre_strength,
-                "volume": s.volume,
-                "is_muted": s.is_muted,
+                "volume":          s.volume,
+                "is_muted":        s.is_muted,
             }
             for s in stems
         ]
 
     try:
-        if not ml_url:
-            raise RuntimeError("ML_API_URL not set")
+        arrays = []
+        sr_final = 44100
 
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            resp = await client.post(
-                f"{ml_url}/mix",
-                json={"job_id": job_id, "stems": stems_payload, "export_format": export_format},
-            )
-            resp.raise_for_status()
-            result = resp.json()
+        for rec in stem_records:
+            if rec["is_muted"]:
+                continue
 
-        # result: {"output_s3_key": "mixes/{job_id}/final_mix.wav"}
+            data = storage.download_bytes(rec["s3_key"])
+            y, sr = load_audio(io.BytesIO(data))
+            sr_final = sr
+
+            if rec["pitch_shift"] != 0.0:
+                y = pitch_shift_audio(y, sr, rec["pitch_shift"])
+            if rec["timbre_strength"] != 1.0:
+                y = change_timbre_simple(y, rec["timbre_strength"])
+
+            # Collapse to mono for mixing
+            if y.ndim == 2:
+                y = y.mean(axis=1)
+
+            arrays.append(y.astype(np.float32) * float(rec["volume"]))
+
+        if not arrays:
+            raise RuntimeError("No unmuted stems to mix")
+
+        max_len = max(len(a) for a in arrays)
+        mix = np.zeros(max_len, dtype=np.float32)
+        for a in arrays:
+            mix[: len(a)] += a
+
+        peak = float(np.max(np.abs(mix)))
+        if peak > 0:
+            mix = mix / peak * 0.98
+
+        buf = io.BytesIO()
+        sf.write(buf, mix, sr_final, format="WAV")
+
+        mix_s3_key = f"mixes/{job_id}/mix_{mix_id}.wav"
+        storage.upload_bytes(buf.getvalue(), mix_s3_key, "audio/wav")
+
         with Session(engine) as session:
-            mix = session.get(DemixMix, mix_id)
-            if mix:
-                mix.output_s3_key = result["output_s3_key"]
-                session.add(mix)
+            record = session.get(DemixMix, mix_id)
+            if record:
+                record.output_s3_key = mix_s3_key
+                session.add(record)
                 session.commit()
 
-    except Exception as exc:
+    except Exception:
         with Session(engine) as session:
-            mix = session.get(DemixMix, mix_id)
-            if mix:
-                session.delete(mix)
+            record = session.get(DemixMix, mix_id)
+            if record:
+                session.delete(record)
                 session.commit()
 
 
@@ -139,7 +167,7 @@ async def create_demix_job(
     job = DemixJob(
         user_id=current_user.id,
         original_file_name=filename,
-        original_s3_key="",   # filled after upload
+        original_s3_key="",
         song_name=song_name,
     )
     session.add(job)
@@ -174,37 +202,88 @@ def get_demix_job(
     for s in stems:
         active_key = s.modified_s3_key or s.original_s3_key
         stem_data.append({
-            "id": s.id,
-            "stem_type": s.stem_type,
-            "pitch_shift": s.pitch_shift,
-            "timbre_strength": s.timbre_strength,
-            "volume": s.volume,
-            "is_muted": s.is_muted,
-            "download_url": storage.get_presigned_url(active_key) if job.status == "completed" else None,
+            "id":               s.id,
+            "stem_type":        s.stem_type,
+            "pitch_shift":      s.pitch_shift,
+            "timbre_strength":  s.timbre_strength,
+            "volume":           s.volume,
+            "is_muted":         s.is_muted,
+            "download_url":     storage.get_presigned_url(active_key) if job.status == "completed" else None,
         })
 
-    mixes = session.exec(select(DemixMix).where(DemixMix.job_id == job_id)).all()
-    latest_mix = mixes[-1] if mixes else None
+    mixes = session.exec(
+        select(DemixMix).where(DemixMix.job_id == job_id).order_by(DemixMix.created_at.desc())
+    ).all()
+    latest_mix = mixes[0] if mixes else None
+
+    # Only generate a presigned URL if the mix output actually exists in S3
+    mix_ready = latest_mix and latest_mix.output_s3_key not in ("", "pending")
+    latest_mix_url = storage.get_presigned_url(latest_mix.output_s3_key) if mix_ready else None
+
+    original_url = (
+        storage.get_presigned_url(job.original_s3_key)
+        if job.original_s3_key and job.status == "completed"
+        else None
+    )
 
     return {
-        "id": job.id,
-        "status": job.status,
-        "song_name": job.song_name,
-        "error_message": job.error_message,
-        "created_at": job.created_at.isoformat(),
-        "stems": stem_data,
-        "latest_mix_url": storage.get_presigned_url(latest_mix.output_s3_key) if latest_mix else None,
+        "id":             job.id,
+        "status":         job.status,
+        "song_name":      job.song_name,
+        "error_message":  job.error_message,
+        "created_at":     job.created_at.isoformat(),
+        "stems":          stem_data,
+        "latest_mix_url": latest_mix_url,
+        "original_url":   original_url,
     }
 
 
+@router.delete("/jobs/{job_id}", summary="Delete a demix job and all its data")
+def delete_demix_job(
+    job_id: str,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    job = session.get(DemixJob, job_id)
+    if not job or job.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    stems = session.exec(select(Stem).where(Stem.job_id == job_id)).all()
+    mixes = session.exec(select(DemixMix).where(DemixMix.job_id == job_id)).all()
+
+    try:
+        if job.original_s3_key:
+            storage.delete_object(job.original_s3_key)
+    except Exception:
+        pass
+    for s in stems:
+        try: storage.delete_object(s.original_s3_key)
+        except Exception: pass
+        if s.modified_s3_key:
+            try: storage.delete_object(s.modified_s3_key)
+            except Exception: pass
+    for m in mixes:
+        try: storage.delete_object(m.output_s3_key)
+        except Exception: pass
+
+    for s in stems:
+        session.delete(s)
+    for m in mixes:
+        session.delete(m)
+    session.delete(job)
+    session.commit()
+
+    return {"deleted": True, "job_id": job_id}
+
+
 class StemEditBody(BaseModel):
-    pitch_shift: Optional[float] = None
+    pitch_shift:     Optional[float] = None
     timbre_strength: Optional[float] = None
-    volume: Optional[float] = None
-    is_muted: Optional[bool] = None
+    volume:          Optional[float] = None
+    is_muted:        Optional[bool]  = None
 
 
-@router.put("/stems/{stem_id}", summary="Update pitch/timbre/volume settings (persisted in DB)")
+@router.put("/stems/{stem_id}", summary="Update pitch/timbre/volume/mute (persisted in DB)")
 def edit_stem(
     stem_id: str,
     body: StemEditBody,
@@ -219,22 +298,24 @@ def edit_stem(
     if not job or job.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not your stem")
 
-    if body.pitch_shift is not None:
-        stem.pitch_shift = body.pitch_shift
-    if body.timbre_strength is not None:
-        stem.timbre_strength = body.timbre_strength
-    if body.volume is not None:
-        stem.volume = body.volume
-    if body.is_muted is not None:
-        stem.is_muted = body.is_muted
+    if body.pitch_shift     is not None: stem.pitch_shift     = body.pitch_shift
+    if body.timbre_strength is not None: stem.timbre_strength = body.timbre_strength
+    if body.volume          is not None: stem.volume          = body.volume
+    if body.is_muted        is not None: stem.is_muted        = body.is_muted
     stem.updated_at = datetime.utcnow()
 
     session.add(stem)
     session.commit()
     session.refresh(stem)
 
-    return {"id": stem.id, "stem_type": stem.stem_type, "pitch_shift": stem.pitch_shift,
-            "timbre_strength": stem.timbre_strength, "volume": stem.volume, "is_muted": stem.is_muted}
+    return {
+        "id":               stem.id,
+        "stem_type":        stem.stem_type,
+        "pitch_shift":      stem.pitch_shift,
+        "timbre_strength":  stem.timbre_strength,
+        "volume":           stem.volume,
+        "is_muted":         stem.is_muted,
+    }
 
 
 @router.post("/jobs/{job_id}/mix", summary="Mix all stems with current settings")
@@ -259,3 +340,21 @@ async def mix_stems(
     background_tasks.add_task(_run_mix, job_id, mix.id, export_format)
 
     return {"mix_id": mix.id, "status": "processing"}
+
+
+@router.get("/mixes/{mix_id}", summary="Poll a specific mix for completion")
+def get_mix_status(
+    mix_id: str,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    mix = session.get(DemixMix, mix_id)
+    if not mix:
+        # Record deleted by _run_mix on failure
+        return {"mix_id": mix_id, "ready": False, "failed": True, "url": None}
+    job = session.get(DemixJob, mix.job_id)
+    if not job or job.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not your mix")
+    ready = mix.output_s3_key not in ("", "pending")
+    url = storage.get_presigned_url(mix.output_s3_key) if ready else None
+    return {"mix_id": mix.id, "ready": ready, "failed": False, "url": url}
