@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=390, initial-scale=1.0"/>
+<title>VibeShift — Demix Studio Mockup</title>
+<style>
+  :root {
+    --bg:       #08060f;
+    --panel:    #100d1c;
+    --card:     #161228;
+    --border:   #2a2040;
+    --magenta:  #ec4981;
+    --cyan:     #22d3ee;
+    --purple:   #9b4dca;
+    --green:    #1cd8a0;
+    --text:     #e8e0f5;
+    --sub:      #7a6f9a;
+    --fader-track: #1e1830;
+    --fader-handle: #2e2848;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    font-family: -apple-system, 'SF Pro Display', Helvetica, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+  }
+
+  /* ── Phone shell ── */
+  .phone {
+    width: 390px;
+    min-height: 844px;
+    background: var(--bg);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Subtle scanline overlay for the DJ vibe */
+  .phone::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      180deg,
+      transparent 0px,
+      transparent 3px,
+      rgba(255,255,255,0.012) 3px,
+      rgba(255,255,255,0.012) 4px
+    );
+    pointer-events: none;
+    z-index: 999;
+  }
+
+  /* ── Header ── */
+  .header {
+    padding: 54px 20px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .logo-row { display: flex; align-items: center; gap: 10px; }
+  .logo-ball {
+    width: 44px; height: 44px; border-radius: 12px;
+    background: linear-gradient(135deg, var(--purple), var(--magenta));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    box-shadow: 0 0 20px rgba(155,77,202,0.6);
+  }
+  .logo-text { display: flex; flex-direction: column; }
+  .logo-name { font-size: 16px; font-weight: 700; color: var(--text); }
+  .logo-sub  { font-size: 12px; color: var(--sub); }
+  .gear-btn  { font-size: 22px; opacity: 0.5; cursor: pointer; }
+
+  /* ── Page title ── */
+  .page-title {
+    text-align: center;
+    padding: 6px 0 14px;
+  }
+  .page-title h1 {
+    font-size: 28px; font-weight: 800;
+    background: linear-gradient(90deg, var(--cyan), var(--magenta));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .page-title p { font-size: 13px; color: var(--sub); margin-top: 2px; }
+
+  /* ── State toggle (demo only) ── */
+  .demo-toggle {
+    margin: 0 20px 10px;
+    display: flex; gap: 8px;
+  }
+  .demo-btn {
+    flex: 1; padding: 8px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--card); color: var(--sub); font-size: 12px;
+    cursor: pointer; text-align: center; transition: all 0.2s;
+  }
+  .demo-btn.active { border-color: var(--cyan); color: var(--cyan); background: rgba(34,211,238,0.08); }
+
+  /* ════════════════════════════════
+     UPLOAD STATE
+  ════════════════════════════════ */
+  .upload-state { flex: 1; display: flex; flex-direction: column; padding: 12px 20px 20px; }
+
+  .prev-section { margin-bottom: 20px; }
+  .section-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .accent-bar { width: 3px; height: 16px; border-radius: 2px; background: var(--magenta); }
+  .section-title { font-size: 14px; font-weight: 600; color: var(--text); }
+
+  .song-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 14px;
+    display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+  }
+  .song-icon { font-size: 18px; }
+  .song-info { flex: 1; }
+  .song-name { font-size: 13px; color: var(--text); font-weight: 600; }
+  .song-date { font-size: 11px; color: var(--sub); margin-top: 2px; }
+  .song-arrow { color: var(--sub); font-size: 14px; }
+
+  .upload-card {
+    flex: 1; border: 1px solid var(--purple); border-radius: 16px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 12px; padding: 32px 24px;
+    background: radial-gradient(ellipse at 50% 80%, rgba(155,77,202,0.08) 0%, transparent 70%);
+    box-shadow: 0 0 30px rgba(155,77,202,0.15);
+  }
+  .upload-icon-ring {
+    width: 72px; height: 72px; border-radius: 36px;
+    border: 1px solid var(--purple);
+    background: rgba(155,77,202,0.08);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 30px;
+  }
+  .upload-title { font-size: 16px; font-weight: 700; color: var(--text); }
+  .upload-sub { font-size: 12px; color: var(--sub); text-align: center; }
+  .upload-btn {
+    background: linear-gradient(90deg, var(--purple), var(--magenta));
+    border: none; border-radius: 10px;
+    padding: 12px 32px; font-size: 14px; font-weight: 600; color: #fff;
+    cursor: pointer; margin-top: 4px;
+    box-shadow: 0 0 20px rgba(155,77,202,0.4);
+  }
+
+  /* ════════════════════════════════
+     DJ MIXER STATE
+  ════════════════════════════════ */
+  .mixer-state { flex: 1; display: flex; flex-direction: column; gap: 0; }
+
+  /* ── Top strip: song info + waveform ── */
+  .now-mixing-bar {
+    margin: 0 16px 10px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 14px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .now-mixing-disc {
+    width: 36px; height: 36px; border-radius: 18px;
+    background: linear-gradient(135deg, var(--purple), var(--magenta));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    box-shadow: 0 0 12px rgba(236,73,129,0.5);
+    animation: spin 4s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .now-mixing-info { flex: 1; }
+  .now-mixing-title { font-size: 13px; font-weight: 700; color: var(--text); }
+  .now-mixing-sub   { font-size: 10px; color: var(--sub); margin-top: 1px; }
+  .live-badge {
+    font-size: 9px; font-weight: 700; letter-spacing: 0.5px;
+    background: var(--magenta); color: #fff;
+    padding: 3px 7px; border-radius: 4px;
+  }
+
+  /* ── Waveform bar ── */
+  .waveform-row {
+    margin: 0 16px 10px;
+    height: 36px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex; align-items: center;
+    padding: 0 8px; gap: 2px;
+  }
+  .waveform-bar {
+    flex: 1; border-radius: 1px;
+    background: var(--cyan);
+    animation: wave var(--dur, 0.6s) ease-in-out infinite alternate;
+    opacity: 0.7;
+  }
+  @keyframes wave {
+    from { height: 4px; opacity: 0.4; }
+    to   { opacity: 1; }
+  }
+
+  /* ── 4 Channel Strips ── */
+  .channels-container {
+    margin: 0 12px;
+    display: flex;
+    gap: 8px;
+    flex: 1;
+  }
+
+  .channel {
+    flex: 1;
+    background: var(--panel);
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    align-items: center;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Top label band */
+  .ch-label {
+    width: 100%;
+    padding: 7px 4px 6px;
+    text-align: center;
+    font-size: 9px; font-weight: 800; letter-spacing: 0.8px;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+  }
+  .ch-emoji { font-size: 16px; display: block; margin-bottom: 2px; }
+
+  /* LED meter */
+  .led-meter {
+    display: flex; flex-direction: column-reverse;
+    gap: 2px; padding: 8px 0 4px;
+    width: 18px; align-items: center;
+  }
+  .led-dot {
+    width: 10px; height: 3px; border-radius: 1px;
+    background: #1e1e2e;
+  }
+  .led-dot.on-green  { background: #22ff88; box-shadow: 0 0 4px #22ff88; }
+  .led-dot.on-yellow { background: #ffd700; box-shadow: 0 0 4px #ffd700; }
+  .led-dot.on-red    { background: #ff3355; box-shadow: 0 0 5px #ff3355; }
+
+  /* Fader track + handle */
+  .fader-section {
+    flex: 1; width: 100%;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 6px 0;
+  }
+  .fader-label { font-size: 8px; color: var(--sub); margin-bottom: 4px; letter-spacing: 0.5px; }
+  .fader-track {
+    width: 6px; flex: 1; border-radius: 3px;
+    background: var(--fader-track);
+    position: relative;
+    display: flex; flex-direction: column; align-items: center;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .fader-fill {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    border-radius: 3px;
+    opacity: 0.6;
+  }
+  .fader-handle {
+    width: 28px; height: 12px; border-radius: 3px;
+    background: linear-gradient(180deg, #3a3356, #252040);
+    border: 1px solid rgba(255,255,255,0.2);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1);
+    position: absolute;
+    cursor: grab;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .fader-grip {
+    width: 16px; height: 2px; border-radius: 1px;
+    background: rgba(255,255,255,0.15);
+  }
+  .fader-pct { font-size: 8px; color: var(--sub); margin-top: 4px; }
+
+  /* Pitch knob */
+  .pitch-section { width: 100%; padding: 6px 0 4px; display: flex; flex-direction: column; align-items: center; border-top: 1px solid var(--border); }
+  .pitch-label { font-size: 8px; color: var(--sub); margin-bottom: 4px; letter-spacing: 0.5px; }
+  .knob {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #3a3356, #1a1630);
+    border: 2px solid rgba(255,255,255,0.12);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.08);
+    position: relative;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .knob-dot {
+    width: 3px; height: 8px; border-radius: 2px;
+    position: absolute; top: 4px; left: 50%; transform: translateX(-50%);
+  }
+  .pitch-val { font-size: 8px; margin-top: 3px; }
+
+  /* Channel action buttons */
+  .ch-actions {
+    display: flex; gap: 5px; padding: 6px 0 8px;
+    border-top: 1px solid var(--border); width: 100%;
+    justify-content: center;
+  }
+  .ch-btn {
+    width: 28px; height: 28px; border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; cursor: pointer;
+    transition: all 0.15s;
+  }
+  .ch-btn.play  { border-color: var(--cyan); color: var(--cyan); }
+  .ch-btn.muted { background: rgba(255,50,80,0.12); border-color: #ff3355; color: #ff3355; }
+
+  /* ── Master/export section ── */
+  .master-section {
+    margin: 10px 12px 16px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 10px 14px;
+  }
+  .master-top {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .master-label { font-size: 10px; font-weight: 700; color: var(--sub); letter-spacing: 0.8px; text-transform: uppercase; }
+  .master-level {
+    display: flex; gap: 2px; align-items: flex-end;
+  }
+  .master-bar {
+    width: 4px; border-radius: 2px;
+    animation: masterBar var(--d, 0.5s) ease-in-out infinite alternate;
+  }
+  @keyframes masterBar {
+    from { height: 4px; opacity: 0.4; }
+    to { opacity: 0.9; }
+  }
+  .master-buttons { display: flex; gap: 8px; }
+  .action-btn-outline {
+    flex: 1; padding: 9px 8px; border-radius: 9px;
+    border: 1.5px solid var(--border); background: transparent;
+    font-size: 12px; font-weight: 600; color: var(--sub);
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+    cursor: pointer;
+  }
+  .action-btn-gradient {
+    flex: 2; padding: 10px 8px; border-radius: 9px;
+    border: none;
+    background: linear-gradient(90deg, var(--cyan), var(--purple));
+    font-size: 13px; font-weight: 700; color: #fff;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    cursor: pointer;
+    box-shadow: 0 0 20px rgba(34,211,238,0.3);
+  }
+
+  /* ── Mix player bar (after export) ── */
+  .mix-player {
+    margin: 0 12px 6px;
+    background: rgba(34,211,238,0.08);
+    border: 1px solid var(--cyan);
+    border-radius: 10px;
+    padding: 8px 12px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .mix-play-btn {
+    width: 34px; height: 34px; border-radius: 17px;
+    border: 1.5px solid var(--cyan);
+    background: transparent;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; color: var(--cyan); cursor: pointer;
+  }
+  .mix-track-info { flex: 1; }
+  .mix-track-name { font-size: 12px; font-weight: 600; color: var(--text); }
+  .mix-track-sub { font-size: 10px; color: var(--sub); }
+  .share-btn {
+    background: linear-gradient(90deg, var(--purple), var(--magenta));
+    border: none; border-radius: 7px;
+    padding: 7px 12px; font-size: 11px; font-weight: 700; color: #fff;
+    cursor: pointer;
+  }
+
+  /* hidden state control */
+  .upload-state, .mixer-state { display: none; }
+  .upload-state.visible, .mixer-state.visible { display: flex; }
+</style>
+</head>
+<body>
+<div class="phone">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="logo-row">
+      <div class="logo-ball">🎛️</div>
+      <div class="logo-text">
+        <span class="logo-name">VibeShift</span>
+        <span class="logo-sub">Hi Insiya</span>
+      </div>
+    </div>
+    <span class="gear-btn">⚙️</span>
+  </div>
+
+  <!-- Title -->
+  <div class="page-title">
+    <h1>Demix Studio</h1>
+    <p>Separate into individual stems</p>
+  </div>
+
+  <!-- Demo toggle -->
+  <div class="demo-toggle">
+    <div class="demo-btn active" id="btn-upload" onclick="show('upload')">📤 Upload State</div>
+    <div class="demo-btn" id="btn-mixer" onclick="show('mixer')">🎛️ Mixer State</div>
+  </div>
+
+  <!-- ══════════════ UPLOAD STATE ══════════════ -->
+  <div class="upload-state visible" id="state-upload">
+
+    <!-- Previously demixed -->
+    <div class="prev-section">
+      <div class="section-header">
+        <div class="accent-bar"></div>
+        <span class="section-title">Previously Demixed</span>
+      </div>
+      <div class="song-card">
+        <span class="song-icon">💿</span>
+        <div class="song-info">
+          <div class="song-name">Blinding Lights</div>
+          <div class="song-date">3 stems · 11 May 2026</div>
+        </div>
+        <span class="song-arrow">›</span>
+      </div>
+      <div class="song-card">
+        <span class="song-icon">💿</span>
+        <div class="song-info">
+          <div class="song-name">Stay</div>
+          <div class="song-date">4 stems · 10 May 2026</div>
+        </div>
+        <span class="song-arrow">›</span>
+      </div>
+    </div>
+
+    <!-- Upload card -->
+    <div class="upload-card">
+      <div class="upload-icon-ring">🎚️</div>
+      <div class="upload-title">Drop a Track</div>
+      <div class="upload-sub">Upload any audio file — AI will split it into individual stems</div>
+      <button class="upload-btn">Upload Song</button>
+    </div>
+
+  </div>
+
+  <!-- ══════════════ MIXER STATE ══════════════ -->
+  <div class="mixer-state" id="state-mixer" style="flex-direction: column;">
+
+    <!-- Now-mixing bar -->
+    <div class="now-mixing-bar">
+      <div class="now-mixing-disc">💿</div>
+      <div class="now-mixing-info">
+        <div class="now-mixing-title">Blinding Lights.mp3</div>
+        <div class="now-mixing-sub">4 stems separated · tap any channel to edit</div>
+      </div>
+      <div class="live-badge">LIVE</div>
+    </div>
+
+    <!-- Waveform visualiser -->
+    <div class="waveform-row" id="waveform"></div>
+
+    <!-- 4 DJ channel strips -->
+    <div class="channels-container">
+
+      <!-- VOCALS -->
+      <div class="channel">
+        <div class="ch-label" style="color: #ec4981; background: rgba(236,73,129,0.1);">
+          <span class="ch-emoji">🎤</span>Vocals
+        </div>
+        <div class="led-meter" id="led-vocals"></div>
+        <div class="fader-section">
+          <span class="fader-label">VOL</span>
+          <div class="fader-track">
+            <div class="fader-fill" style="height: 75%; background: linear-gradient(to top, #ec4981, rgba(236,73,129,0.2));"></div>
+            <div class="fader-handle" style="bottom: calc(75% - 6px);">
+              <div class="fader-grip"></div>
+            </div>
+          </div>
+          <span class="fader-pct">75%</span>
+        </div>
+        <div class="pitch-section">
+          <span class="pitch-label">PITCH</span>
+          <div class="knob" style="border-color: rgba(236,73,129,0.4);">
+            <div class="knob-dot" style="background: #ec4981; transform: translateX(-50%) rotate(0deg);"></div>
+          </div>
+          <span class="pitch-val" style="color: #ec4981; font-size: 8px;">0</span>
+        </div>
+        <div class="ch-actions">
+          <div class="ch-btn play">▶</div>
+          <div class="ch-btn">M</div>
+        </div>
+      </div>
+
+      <!-- DRUMS -->
+      <div class="channel">
+        <div class="ch-label" style="color: #22d3ee; background: rgba(34,211,238,0.1);">
+          <span class="ch-emoji">🥁</span>Drums
+        </div>
+        <div class="led-meter" id="led-drums"></div>
+        <div class="fader-section">
+          <span class="fader-label">VOL</span>
+          <div class="fader-track">
+            <div class="fader-fill" style="height: 90%; background: linear-gradient(to top, #22d3ee, rgba(34,211,238,0.2));"></div>
+            <div class="fader-handle" style="bottom: calc(90% - 6px);">
+              <div class="fader-grip"></div>
+            </div>
+          </div>
+          <span class="fader-pct">90%</span>
+        </div>
+        <div class="pitch-section">
+          <span class="pitch-label">PITCH</span>
+          <div class="knob" style="border-color: rgba(34,211,238,0.4);">
+            <div class="knob-dot" style="background: #22d3ee; transform: translateX(-50%) rotate(30deg);"></div>
+          </div>
+          <span class="pitch-val" style="color: #22d3ee; font-size: 8px;">+2</span>
+        </div>
+        <div class="ch-actions">
+          <div class="ch-btn play" style="color:#22d3ee; border-color:#22d3ee;">⏸</div>
+          <div class="ch-btn">M</div>
+        </div>
+      </div>
+
+      <!-- BASS -->
+      <div class="channel">
+        <div class="ch-label" style="color: #9b4dca; background: rgba(155,77,202,0.1);">
+          <span class="ch-emoji">🎸</span>Bass
+        </div>
+        <div class="led-meter" id="led-bass"></div>
+        <div class="fader-section">
+          <span class="fader-label">VOL</span>
+          <div class="fader-track">
+            <div class="fader-fill" style="height: 60%; background: linear-gradient(to top, #9b4dca, rgba(155,77,202,0.2));"></div>
+            <div class="fader-handle" style="bottom: calc(60% - 6px);">
+              <div class="fader-grip"></div>
+            </div>
+          </div>
+          <span class="fader-pct">60%</span>
+        </div>
+        <div class="pitch-section">
+          <span class="pitch-label">PITCH</span>
+          <div class="knob" style="border-color: rgba(155,77,202,0.4);">
+            <div class="knob-dot" style="background: #9b4dca; transform: translateX(-50%) rotate(-20deg);"></div>
+          </div>
+          <span class="pitch-val" style="color: #9b4dca; font-size: 8px;">-1</span>
+        </div>
+        <div class="ch-actions">
+          <div class="ch-btn play" style="color:#9b4dca; border-color:#9b4dca;">▶</div>
+          <div class="ch-btn">M</div>
+        </div>
+      </div>
+
+      <!-- OTHER -->
+      <div class="channel">
+        <div class="ch-label" style="color: #1cd8a0; background: rgba(28,216,160,0.1);">
+          <span class="ch-emoji">🎹</span>Other
+        </div>
+        <div class="led-meter" id="led-other"></div>
+        <div class="fader-section">
+          <span class="fader-label">VOL</span>
+          <div class="fader-track">
+            <div class="fader-fill" style="height: 50%; background: linear-gradient(to top, #1cd8a0, rgba(28,216,160,0.2));"></div>
+            <div class="fader-handle" style="bottom: calc(50% - 6px);">
+              <div class="fader-grip"></div>
+            </div>
+          </div>
+          <span class="fader-pct">50%</span>
+        </div>
+        <div class="pitch-section">
+          <span class="pitch-label">PITCH</span>
+          <div class="knob" style="border-color: rgba(28,216,160,0.4);">
+            <div class="knob-dot" style="background: #1cd8a0; transform: translateX(-50%) rotate(0deg);"></div>
+          </div>
+          <span class="pitch-val" style="color: #1cd8a0; font-size: 8px;">0</span>
+        </div>
+        <div class="ch-actions">
+          <div class="ch-btn play" style="color:#1cd8a0; border-color:#1cd8a0;">▶</div>
+          <div class="ch-btn muted">M</div>
+        </div>
+      </div>
+
+    </div><!-- /channels-container -->
+
+    <!-- Mix player bar (shown after export) -->
+    <div class="mix-player">
+      <button class="mix-play-btn">▶</button>
+      <div class="mix-track-info">
+        <div class="mix-track-name">Mixed Track</div>
+        <div class="mix-track-sub">Ready to share</div>
+      </div>
+      <button class="share-btn">⬆ Share</button>
+    </div>
+
+    <!-- Master / export -->
+    <div class="master-section">
+      <div class="master-top">
+        <span class="master-label">Master Out</span>
+        <div class="master-level" id="master-level"></div>
+      </div>
+      <div class="master-buttons">
+        <button class="action-btn-outline" onclick="show('upload')">↺ Reset</button>
+        <button class="action-btn-outline">+ Stem</button>
+        <button class="action-btn-gradient">⬇ Export Mix</button>
+      </div>
+    </div>
+
+  </div><!-- /mixer-state -->
+
+</div><!-- /phone -->
+
+<script>
+  // ── Demo toggle ──────────────────────────────
+  function show(state) {
+    document.getElementById('state-upload').classList.toggle('visible', state === 'upload');
+    document.getElementById('state-mixer').classList.toggle('visible', state === 'mixer');
+    document.getElementById('btn-upload').classList.toggle('active', state === 'upload');
+    document.getElementById('btn-mixer').classList.toggle('active', state === 'mixer');
+  }
+
+  // ── Build waveform bars ──────────────────────
+  const wf = document.getElementById('waveform');
+  const wfColors = ['#22d3ee','#ec4981','#9b4dca','#1cd8a0'];
+  for (let i = 0; i < 60; i++) {
+    const b = document.createElement('div');
+    b.className = 'waveform-bar';
+    const h = 6 + Math.random() * 26;
+    b.style.cssText = `height:${h}px; background:${wfColors[i%4]}; --dur:${0.3 + Math.random()*0.7}s;`;
+    wf.appendChild(b);
+  }
+
+  // ── Build master level bars ──────────────────
+  const ml = document.getElementById('master-level');
+  const masterH = [4,8,12,18,22,18,14,10,6,4,6,10,16,20,16,12,8,5];
+  const masterC = ['#22ff88','#22ff88','#22ff88','#22ff88','#22ff88','#22ff88','#ffd700','#ffd700','#ff3355','#ff3355','#ff3355','#ffd700','#22ff88','#22ff88','#ffd700','#22ff88','#22ff88','#22ff88'];
+  masterH.forEach((h, i) => {
+    const b = document.createElement('div');
+    b.className = 'master-bar';
+    b.style.cssText = `height:${h}px; background:${masterC[i]}; --d:${0.2+Math.random()*0.6}s;`;
+    ml.appendChild(b);
+  });
+
+  // ── Build LED meters ─────────────────────────
+  function buildLed(id, levels, color) {
+    const el = document.getElementById(id);
+    const classes = ['on-green','on-green','on-green','on-green','on-green','on-green','on-yellow','on-yellow','on-red','on-red'];
+    for (let i = 9; i >= 0; i--) {
+      const d = document.createElement('div');
+      d.className = 'led-dot' + (i < levels ? ' ' + classes[i] : '');
+      el.appendChild(d);
+    }
+  }
+  buildLed('led-vocals', 7,  '#ec4981');
+  buildLed('led-drums',  9,  '#22d3ee');
+  buildLed('led-bass',   5,  '#9b4dca');
+  buildLed('led-other',  4,  '#1cd8a0');
+
+  // ── Animate LED meters randomly ─────────────
+  function animateLeds(id, baseLevel) {
+    const dots = document.getElementById(id).querySelectorAll('.led-dot');
+    const classes = ['on-green','on-green','on-green','on-green','on-green','on-green','on-yellow','on-yellow','on-red','on-red'];
+    function tick() {
+      const lvl = Math.max(0, Math.min(10, baseLevel + Math.floor((Math.random() - 0.5) * 4)));
+      dots.forEach((d, i) => {
+        const idx = 9 - i;
+        d.className = 'led-dot' + (idx < lvl ? ' ' + classes[idx] : '');
+      });
+      setTimeout(tick, 80 + Math.random() * 120);
+    }
+    tick();
+  }
+  animateLeds('led-vocals', 7);
+  animateLeds('led-drums',  9);
+  animateLeds('led-bass',   5);
+  animateLeds('led-other',  4);
+
+  // ── Draggable faders (basic demo) ─────────────
+  document.querySelectorAll('.fader-handle').forEach(handle => {
+    let dragging = false, startY = 0, startBottom = 0;
+    handle.addEventListener('mousedown', e => {
+      dragging = true;
+      startY = e.clientY;
+      startBottom = parseInt(handle.style.bottom);
+      e.preventDefault();
+    });
+    document.addEventListener('mousemove', e => {
+      if (!dragging) return;
+      const track = handle.closest('.fader-track');
+      const trackH = track.clientHeight;
+      const delta = startY - e.clientY;
+      const newBottom = Math.max(0, Math.min(trackH - 12, startBottom + delta));
+      handle.style.bottom = newBottom + 'px';
+      const fill = track.querySelector('.fader-fill');
+      const pct = Math.round((newBottom / (trackH - 12)) * 100);
+      fill.style.height = pct + '%';
+      const pctEl = track.closest('.fader-section').querySelector('.fader-pct');
+      if (pctEl) pctEl.textContent = pct + '%';
+    });
+    document.addEventListener('mouseup', () => { dragging = false; });
+  });
+</script>
+</body>
+</html>

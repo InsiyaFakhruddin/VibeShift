@@ -1,40 +1,19 @@
-import { useAuth, useUser } from '@clerk/clerk-expo';
+import { useAuth } from '@clerk/clerk-expo';
 import { Redirect, Tabs } from 'expo-router';
-import React, { useEffect } from 'react';
+import React from 'react';
 
 import BottomTabBar from '@/components/BottomTabBar';
 import Icon from '@/components/Icon';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { useProfile } from '@/context/UserContext';
-
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? '';
 
 function TabsInner() {
   const colorScheme = useColorScheme();
-  const { isSignedIn, isLoaded, getToken } = useAuth();
-  const { user } = useUser();
-  const { refreshProfile } = useProfile();
+  const { isSignedIn, isLoaded } = useAuth();
 
-  useEffect(() => {
-    if (!isSignedIn || !user) return;
-    (async () => {
-      try {
-        const token = await getToken();
-        // Sync Clerk user into our DB
-        await fetch(`${API_URL}/auth/sync`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: user.primaryEmailAddress?.emailAddress ?? '',
-            name: user.fullName ?? user.username ?? '',
-          }),
-        });
-        // Fetch full profile into context
-        await refreshProfile();
-      } catch (_) {}
-    })();
-  }, [isSignedIn, user?.id]);
+  // Auth sync + profile fetch are handled entirely by UserContext (context/UserContext.tsx).
+  // That context uses skipCache token retries and the correct email-prefix name fallback.
+  // Duplicating the sync here causes races and silent failures — removed.
 
   if (!isLoaded) return null;
   if (!isSignedIn) return <Redirect href="/login" />;

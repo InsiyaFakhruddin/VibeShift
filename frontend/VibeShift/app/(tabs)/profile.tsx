@@ -4,7 +4,7 @@ import { ThemedView } from '@/components/themed-view';
 import GradientText from '@/components/GradientText';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { hexToRgba, useAppTheme } from '@/context/AppearanceContext';
@@ -13,11 +13,13 @@ import { useProfile } from '@/context/UserContext';
 export default function Profile() {
   const router = useRouter();
   const { signOut } = useAuth();
-  const { profile, refreshProfile } = useProfile();
+  const { profile } = useProfile();
   const t = useAppTheme();
   const [pressedTab, setPressedTab] = React.useState<string | null>(null);
 
-  useEffect(() => { refreshProfile(); }, []);
+  // UserContext already calls refreshProfile() after POST /auth/sync on sign-in.
+  // Calling it here on mount races the sync and fails with 404 if the user isn't in
+  // the DB yet. Profile data flows in automatically once UserContext finishes syncing.
 
   const displayName = profile?.name || 'User';
 
@@ -72,7 +74,9 @@ export default function Profile() {
                     {profile?.bio ? (
                       <Text style={[styles.bioText, { color: t.accent }]}>{profile.bio}</Text>
                     ) : (
-                      <Text style={[styles.subtitleText, { color: t.subtitle }]}>Music Enthusiast</Text>
+                      <Text style={[styles.bioPlaceholder, { color: hexToRgba(t.subtitle, 0.45) }]}>
+                        Tap Edit Profile to add a bio...
+                      </Text>
                     )}
                   </View>
                 </View>
@@ -198,6 +202,7 @@ const styles = StyleSheet.create({
   nameText: { fontSize: 22, fontWeight: '700', marginBottom: 4 },
   subtitleText: { fontSize: 13 },
   bioText: { fontSize: 13, textAlign: 'center', paddingHorizontal: 16 },
+  bioPlaceholder: { fontSize: 12, textAlign: 'center', paddingHorizontal: 16, fontStyle: 'italic' },
 
   statsRow: { flexDirection: 'row', gap: 12 },
   statCard: {

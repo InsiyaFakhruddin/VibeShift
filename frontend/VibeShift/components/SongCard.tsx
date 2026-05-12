@@ -10,6 +10,7 @@ type Props = {
   duration?: string;
   editedDate?: string;
   onClick?: () => void;
+  onDelete?: () => void;
 };
 
 function EqualizerBar({ delay, maxHeight, color, enabled }: { delay: number; maxHeight: number; color: string; enabled: boolean }) {
@@ -47,7 +48,7 @@ function EqualizerBar({ delay, maxHeight, color, enabled }: { delay: number; max
   );
 }
 
-export function SongCard({ title, duration, editedDate, onClick }: Props) {
+export function SongCard({ title, duration, editedDate, onClick, onDelete }: Props) {
   const { accentColor, accentAltColor, animationsEnabled } = useAppearance();
   const t = useAppTheme();
   const scale = React.useRef(new Animated.Value(1)).current;
@@ -95,6 +96,15 @@ export function SongCard({ title, duration, editedDate, onClick }: Props) {
           {editedDate ? <ThemedText style={[styles.sub, { color: t.subtitle }]}>{editedDate}</ThemedText> : null}
         </View>
       </View>
+      {onDelete && (
+        <Pressable
+          onPress={(e) => { e.stopPropagation?.(); onDelete(); }}
+          style={{ padding: 8 }}
+          hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+        >
+          <Icon name="trash-2" size={14} color="#ef4444" />
+        </Pressable>
+      )}
       <Icon name="clock" size={14} color={t.subtitle} />
     </Pressable>
   );

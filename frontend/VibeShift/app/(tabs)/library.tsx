@@ -5,8 +5,8 @@ import { hexToRgba, useAppTheme } from '@/context/AppearanceContext';
 import { useProfile } from '@/context/UserContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? '';
@@ -53,21 +53,67 @@ export default function Library() {
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchLibrary = useCallback(async () => {
+  // Use a ref so the refresh button and useEffect always call the latest version
+  // of fetchLibrary without stale-closure issues from useCallback's dep array.
+  const fetchLibraryRef = useRef<(() => Promise<void>) | undefined>(undefined);
+
+  const fetchLibrary = async () => {
+    setLoading(true);
     try {
-      const token = await getToken();
+      let token = await getToken();
+      if (!token) token = await getToken({ skipCache: true } as any);
+      if (!token) { setLoading(false); return; }
       const res = await fetch(`${API_URL}/library`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
         const data = await res.json();
         setItems(data.items ?? []);
+      } else {
+        console.warn('[Library] fetch failed', res.status);
       }
-    } catch (_) {}
-    finally { setLoading(false); }
-  }, [getToken]);
+    } catch (e) {
+      console.warn('[Library] fetch error', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+  fetchLibraryRef.current = fetchLibrary;
 
-  useEffect(() => { fetchLibrary(); }, []);
+  // Wait for UserContext sync to complete (profile.id is set) before fetching.
+  // Fetching earlier races POST /auth/sync and gets a 404 from get_current_user.
+  useEffect(() => {
+    if (!profile?.id) return;
+    fetchLibraryRef.current?.();
+  }, [profile?.id]);
+
+  const handleDelete = (item: LibraryItem) => {
+    Alert.alert(
+      'Delete Edit',
+      'Permanently delete this edit? This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete', style: 'destructive',
+          onPress: async () => {
+            try {
+              let token = await getToken();
+              if (!token) token = await getToken({ skipCache: true } as any);
+              if (!token) return;
+              const endpoint = item.type === 'demix'
+                ? `${API_URL}/demixer/jobs/${item.id}`
+                : `${API_URL}/transform/jobs/${item.id}`;
+              const res = await fetch(endpoint, {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${token}` },
+              });
+              if (res.ok) setItems(prev => prev.filter(i => i.id !== item.id));
+            } catch (_) {}
+          },
+        },
+      ]
+    );
+  };
 
   const filtered = items.filter((item) => {
     if (selectedTab === 'demixed')   return item.type === 'demix';
@@ -153,49 +199,57 @@ export default function Library() {
                     const cardAccent = isDemix ? t.accent : t.accentAlt;
                     const cardAccentRing = isDemix ? t.accentAlt : t.accent;
                     return (
-                      <Pressable
-                        key={item.id}
-                        style={({ pressed }) => [
-                          styles.songCard,
-                          {
-                            backgroundColor: t.card,
-                            borderColor: pressed ? cardAccentRing : t.border,
-                          },
-                        ]}
-                        onPress={() => isDemix ? router.push('/demixing') : router.push('/genre-transform')}
-                      >
-                        {/* Left accent stripe */}
-                        <View style={[styles.cardStripe, { backgroundColor: cardAccent }]} />
+                      <View key={item.id} style={styles.cardRow}>
+                        <Pressable
+                          style={({ pressed }) => [
+                            styles.songCard,
+                            {
+                              backgroundColor: t.card,
+                              borderColor: pressed ? cardAccentRing : t.border,
+                            },
+                          ]}
+                          onPress={() => isDemix ? router.push('/demixing') : router.push('/genre-transform')}
+                        >
+                          {/* Left accent stripe */}
+                          <View style={[styles.cardStripe, { backgroundColor: cardAccent }]} />
 
-                        {/* Icon with ring */}
-                        <View style={[styles.cardIcon, {
-                          backgroundColor: hexToRgba(cardAccent, 0.15),
-                          borderWidth: 1.5,
-                          borderColor: hexToRgba(cardAccentRing, 0.5),
-                        }]}>
-                          <Icon
-                            name={isDemix ? 'music-2' : 'sparkles'}
-                            size={20}
-                            color={cardAccent}
-                          />
-                        </View>
+                          {/* Icon with ring */}
+                          <View style={[styles.cardIcon, {
+                            backgroundColor: hexToRgba(cardAccent, 0.15),
+                            borderWidth: 1.5,
+                            borderColor: hexToRgba(cardAccentRing, 0.5),
+                          }]}>
+                            <Icon
+                              name={isDemix ? 'music-2' : 'sparkles'}
+                              size={20}
+                              color={cardAccent}
+                            />
+                          </View>
 
-                        <View style={styles.cardInfo}>
-                          <Text style={[styles.cardTitle, { color: t.text }]} numberOfLines={1}>{item.song_name}</Text>
-                          {isDemix ? (
-                            <Text style={[styles.cardMeta, { color: t.subtitle }]}>
-                              <Text style={{ color: t.accent, fontWeight: '600' }}>Demixed</Text>
-                              {` · ${timeAgo(item.created_at)}`}
-                            </Text>
-                          ) : (
-                            <Text style={[styles.cardMeta, { color: t.subtitle }]}>
-                              <Text style={{ color: t.accentAlt, fontWeight: '600' }}>→ {item.target_genre}</Text>
-                              {` · ${timeAgo(item.created_at)}`}
-                            </Text>
-                          )}
-                        </View>
-                        <StatusBadge status={item.status} />
-                      </Pressable>
+                          <View style={styles.cardInfo}>
+                            <Text style={[styles.cardTitle, { color: t.text }]} numberOfLines={1}>{item.song_name}</Text>
+                            {isDemix ? (
+                              <Text style={[styles.cardMeta, { color: t.subtitle }]}>
+                                <Text style={{ color: t.accent, fontWeight: '600' }}>Demixed</Text>
+                                {` · ${timeAgo(item.created_at)}`}
+                              </Text>
+                            ) : (
+                              <Text style={[styles.cardMeta, { color: t.subtitle }]}>
+                                <Text style={{ color: t.accentAlt, fontWeight: '600' }}>→ {item.target_genre}</Text>
+                                {` · ${timeAgo(item.created_at)}`}
+                              </Text>
+                            )}
+                          </View>
+                          <StatusBadge status={item.status} />
+                          <Pressable
+                            onPress={(event) => { event?.stopPropagation(); handleDelete(item); }}
+                            style={styles.deleteBtn}
+                            hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                          >
+                            <Icon name="trash-2" size={16} color="#ef4444" />
+                          </Pressable>
+                        </Pressable>
+                      </View>
                     );
                   })}
                 </View>
@@ -239,10 +293,25 @@ const styles = StyleSheet.create({
   tabText: { fontSize: 13, fontWeight: '500' },
 
   songsList: { gap: 12 },
+  cardRow: { flexDirection: 'row', alignItems: 'center', gap: 8, width: '100%' },
   songCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    borderRadius: 16, paddingVertical: 14, paddingRight: 14, borderWidth: 1,
-    overflow: 'hidden',
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingRight: 14,
+    borderWidth: 1,
+  },
+  deleteBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(239, 68, 68, 0.14)',
   },
   cardStripe: { width: 4, alignSelf: 'stretch', borderRadius: 2, marginRight: 2 },
   cardIcon: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },

@@ -10,6 +10,7 @@ interface Stem {
   name: string;
   icon: string;
   color: string;
+  download_url?: string | null;
   settings: {
     volume: number;
     pitch: number;
@@ -19,29 +20,35 @@ interface Stem {
 
 interface StemMixerProps {
   stems: Stem[];
+  playingUrl?: string | null;
   onStemDelete: (stemId: string) => void;
   onSettingsChange: (stemId: string, settings: any) => void;
+  onStemSave?: (stemId: string, settings: { volume: number; pitch: number; timbre: number }) => void;
+  onPlayStem?: (url: string) => void;
 }
 
-export const StemMixer = ({ stems, onStemDelete, onSettingsChange }: StemMixerProps) => {
+export const StemMixer = ({
+  stems,
+  playingUrl,
+  onStemDelete,
+  onSettingsChange,
+  onStemSave,
+  onPlayStem,
+}: StemMixerProps) => {
   const t = useAppTheme();
   const screenWidth = Dimensions.get('window').width;
   const screenHeight = Dimensions.get('window').height;
-  
-  // Dynamically adjust ring spacing based on stem count
-  const ringIncrement = stems.length > 2 ? 40 : 50;
+
+  // Wider gap between rings so each icon is easily tappable
+  const ringIncrement = stems.length > 2 ? 60 : 70;
   const maxAvailableRadius = Math.min(screenWidth, screenHeight * 0.55) / 2 - 20;
   const baseSize = 100;
   const maxRingIndex = stems.length - 1;
   const maxRadiusNeeded = (baseSize + maxRingIndex * ringIncrement) / 2;
-  const ringScaleFactor = maxRadiusNeeded > maxAvailableRadius 
-    ? maxAvailableRadius / maxRadiusNeeded 
-    : 1;
-  
-  // Smallest ring size: baseSize * ringScaleFactor
-  // Center icon circle must be MUCH smaller than the smallest ring
+  const ringScaleFactor = maxRadiusNeeded > maxAvailableRadius ? maxAvailableRadius / maxRadiusNeeded : 1;
+
   const smallestRingSize = baseSize * ringScaleFactor;
-  const centerIconSize = Math.max(25, smallestRingSize * 0.35); // 35% of smallest ring, min 25px
+  const centerIconSize = Math.max(25, smallestRingSize * 0.35);
   const centerSvgSize = centerIconSize * 2;
 
   if (stems.length === 0) {
@@ -54,19 +61,10 @@ export const StemMixer = ({ stems, onStemDelete, onSettingsChange }: StemMixerPr
 
   return (
     <View style={styles.container}>
-      <View 
-        style={[
-          styles.ringContainer,
-          {
-            width: screenWidth,
-            height: screenHeight * 0.55,
-          }
-        ]}
-      >
-        {/* Central music disc icon */}
-        <View style={styles.centralIconWrapper}>
+      <View style={[styles.ringContainer, { width: screenWidth, height: screenHeight * 0.55 }]}>
+        {/* Central music disc */}
+        <View style={[styles.centralIconWrapper, { zIndex: 200 }]}>
           <View style={[styles.discShadow, { shadowColor: t.accent }]}>
-            {/* Gradient circle background */}
             <Svg width={centerSvgSize} height={centerSvgSize} viewBox="0 0 120 120" style={styles.gradientCircle}>
               <Defs>
                 <SvgLinearGradient id="centerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -77,18 +75,10 @@ export const StemMixer = ({ stems, onStemDelete, onSettingsChange }: StemMixerPr
               <Circle cx="60" cy="60" r="45" fill="url(#centerGradient)" opacity="0.9" />
               <Circle cx="60" cy="60" r="45" fill="none" stroke="url(#centerGradient)" strokeWidth="2" opacity="0.6" />
             </Svg>
-            
-            {/* Music icon on top */}
-            <Icon 
-              name="music-2" 
-              size={centerIconSize} 
-              color="#ffffff"
-              style={styles.musicIcon}
-            />
+            <Icon name="music-2" size={centerIconSize} color="#ffffff" style={styles.musicIcon} />
           </View>
         </View>
 
-        {/* Stem rings */}
         {stems.map((stem, index) => (
           <StemRing
             key={stem.id}
@@ -99,8 +89,12 @@ export const StemMixer = ({ stems, onStemDelete, onSettingsChange }: StemMixerPr
             ringScaleFactor={ringScaleFactor}
             color={stem.color}
             settings={stem.settings}
+            stemUrl={stem.download_url ?? undefined}
+            isCurrentlyPlaying={!!(stem.download_url && playingUrl === stem.download_url)}
             onDelete={() => onStemDelete(stem.id)}
-            onSettingsChange={(settings: any) => onSettingsChange(stem.id, settings)}
+            onSettingsChange={(settings) => onSettingsChange(stem.id, settings)}
+            onSave={onStemSave ? (settings) => onStemSave(stem.id, settings) : undefined}
+            onPlayStem={onPlayStem}
           />
         ))}
       </View>
@@ -109,44 +103,12 @@ export const StemMixer = ({ stems, onStemDelete, onSettingsChange }: StemMixerPr
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: 'transparent',
-  },
-  ringContainer: {
-    position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  centralIconWrapper: {
-    position: 'absolute',
-    zIndex: 5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  discShadow: {
-    shadowColor: '#7c3aed',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 40,
-    elevation: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  gradientCircle: {
-    position: 'absolute',
-  },
-  musicIcon: {
-    color: '#ffffff',
-  },
-  emptyContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyText: {
-    color: 'rgba(255,255,255,0.6)',
-    fontSize: 14,
-  },
+  container: { flex: 1, backgroundColor: 'transparent' },
+  ringContainer: { position: 'relative', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  centralIconWrapper: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
+  discShadow: { shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.8, shadowRadius: 40, elevation: 20, alignItems: 'center', justifyContent: 'center' },
+  gradientCircle: { position: 'absolute' },
+  musicIcon: { color: '#ffffff' },
+  emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  emptyText: { fontSize: 14 },
 });

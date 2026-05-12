@@ -10,7 +10,7 @@ type Props = {
   onPreview: () => void;
 };
 
-export const GenreBubble = ({ genre, isSelected, onSelect, onPreview }: Props) => {
+export const GenreBubble = ({ genre, isSelected, onSelect }: Props) => {
   const t = useAppTheme();
 
   return (
@@ -35,17 +35,6 @@ export const GenreBubble = ({ genre, isSelected, onSelect, onPreview }: Props) =
       ]}
     >
       <Text style={[styles.text, { color: isSelected ? t.accent : t.text }]}>{genre}</Text>
-      <Pressable
-        onPress={(e) => { e.stopPropagation(); onPreview(); }}
-        style={({ pressed }) => [
-          styles.previewBtn,
-          { backgroundColor: pressed ? hexToRgba(t.accentAlt, 0.3) : hexToRgba(t.accent, 0.15) },
-        ]}
-      >
-        {({ pressed }) => (
-          <Text style={[styles.previewText, { color: pressed ? t.accentAlt : t.accent }]}>▶</Text>
-        )}
-      </Pressable>
     </Pressable>
   );
 };

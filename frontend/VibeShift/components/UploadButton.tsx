@@ -1,3 +1,4 @@
+import * as DocumentPicker from 'expo-document-picker';
 import { useAppTheme } from '@/context/AppearanceContext';
 import React from 'react';
 import { Platform, Pressable, StyleSheet, Text } from 'react-native';
@@ -23,13 +24,13 @@ export const UploadButton = ({ onUpload }: Props) => {
         return;
       }
 
-      const DocumentPicker = await import('expo-document-picker');
-      const res = await DocumentPicker.getDocumentAsync({ type: 'audio/*' });
-      if ((res as any).type === 'success') {
-        onUpload(res as any);
+      const res = await DocumentPicker.getDocumentAsync({ type: 'audio/*', copyToCacheDirectory: true });
+      // expo-document-picker v14+ returns { canceled, assets }
+      if (!res.canceled && res.assets && res.assets.length > 0) {
+        onUpload(res.assets[0]);
       }
     } catch (err) {
-      console.warn('Document picker not available:', err);
+      console.warn('Document picker error:', err);
     }
   }
 

@@ -1,848 +1,515 @@
 from docx import Document
-from docx.shared import Pt, RGBColor, Inches, Cm
+from docx.shared import Pt, RGBColor, Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.enum.table import WD_TABLE_ALIGNMENT, WD_ALIGN_VERTICAL
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
-import copy
 
 doc = Document()
 
-# ── page margins ──────────────────────────────────────────────────────────────
-for section in doc.sections:
-    section.top_margin    = Cm(2.5)
-    section.bottom_margin = Cm(2.5)
-    section.left_margin   = Cm(3)
-    section.right_margin  = Cm(2.5)
+# ── Page margins ─────────────────────────────────────────────────────────────
+section = doc.sections[0]
+section.left_margin   = Inches(1.25)
+section.right_margin  = Inches(1.25)
+section.top_margin    = Inches(1)
+section.bottom_margin = Inches(1)
 
-# ── helpers ───────────────────────────────────────────────────────────────────
-PURPLE = RGBColor(0x7C, 0x3A, 0xED)
-DARK   = RGBColor(0x1E, 0x1B, 0x4B)
-GREY   = RGBColor(0x6B, 0x72, 0x80)
-
-def heading1(text):
+# ── Style helpers ─────────────────────────────────────────────────────────────
+def h1(text):
     p = doc.add_heading(text, level=1)
-    p.runs[0].font.color.rgb = PURPLE
     p.runs[0].font.size = Pt(16)
-    p.paragraph_format.space_before = Pt(18)
-    p.paragraph_format.space_after  = Pt(6)
+    return p
 
-def heading2(text):
+def h2(text):
     p = doc.add_heading(text, level=2)
-    p.runs[0].font.color.rgb = DARK
-    p.runs[0].font.size = Pt(13)
-    p.paragraph_format.space_before = Pt(12)
-    p.paragraph_format.space_after  = Pt(4)
+    p.runs[0].font.size = Pt(14)
+    return p
 
-def heading3(text):
+def h3(text):
     p = doc.add_heading(text, level=3)
-    p.runs[0].font.color.rgb = PURPLE
-    p.runs[0].font.size = Pt(11)
-    p.paragraph_format.space_before = Pt(8)
-    p.paragraph_format.space_after  = Pt(2)
+    p.runs[0].font.size = Pt(12)
+    return p
 
-def body(text, bold=False, italic=False, color=None):
+def para(text, bold_prefix=None):
+    p = doc.add_paragraph()
+    p.paragraph_format.space_after = Pt(6)
+    if bold_prefix:
+        run = p.add_run(bold_prefix + " ")
+        run.bold = True
+    p.add_run(text)
+    return p
+
+def bullet(text, bold_prefix=None):
+    p = doc.add_paragraph(style='List Bullet')
+    p.paragraph_format.space_after = Pt(3)
+    if bold_prefix:
+        r = p.add_run(bold_prefix + ": ")
+        r.bold = True
+    p.add_run(text)
+    return p
+
+def code_block(text):
     p = doc.add_paragraph()
     run = p.add_run(text)
-    run.font.size = Pt(11)
-    run.bold   = bold
-    run.italic = italic
-    if color:
-        run.font.color.rgb = color
+    run.font.name = 'Courier New'
+    run.font.size = Pt(9)
+    p.paragraph_format.left_indent = Inches(0.5)
     p.paragraph_format.space_after = Pt(4)
     return p
 
-def bullet(text, level=0):
-    p = doc.add_paragraph(text, style='List Bullet')
-    p.paragraph_format.left_indent = Inches(0.25 * (level + 1))
-    p.paragraph_format.space_after = Pt(2)
-    for run in p.runs:
-        run.font.size = Pt(10.5)
+# ═══════════════════════════════════════════════════════════════════════════════
+# CHAPTER 5
+# ═══════════════════════════════════════════════════════════════════════════════
+h1("Chapter 5: Implementation")
 
-def code_block(lines):
-    """Grey-background monospace paragraph for code."""
-    for line in lines:
-        p = doc.add_paragraph()
-        p.paragraph_format.left_indent  = Inches(0.3)
-        p.paragraph_format.space_before = Pt(1)
-        p.paragraph_format.space_after  = Pt(1)
-        run = p.add_run(line)
-        run.font.name = 'Courier New'
-        run.font.size = Pt(9)
-        run.font.color.rgb = RGBColor(0x1F, 0x29, 0x37)
-        # light grey background via xml shading
-        pPr = p._p.get_or_add_pPr()
-        shd = OxmlElement('w:shd')
-        shd.set(qn('w:val'), 'clear')
-        shd.set(qn('w:color'), 'auto')
-        shd.set(qn('w:fill'), 'F3F4F6')
-        pPr.append(shd)
-
-def simple_table(headers, rows, col_widths=None):
-    table = doc.add_table(rows=1, cols=len(headers))
-    table.style = 'Table Grid'
-    table.alignment = WD_TABLE_ALIGNMENT.LEFT
-    # header row
-    hrow = table.rows[0]
-    for i, h in enumerate(headers):
-        cell = hrow.cells[i]
-        cell.text = h
-        run = cell.paragraphs[0].runs[0]
-        run.bold = True
-        run.font.size = Pt(10)
-        run.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
-        # purple background
-        tcPr = cell._tc.get_or_add_tcPr()
-        shd = OxmlElement('w:shd')
-        shd.set(qn('w:val'), 'clear')
-        shd.set(qn('w:color'), 'auto')
-        shd.set(qn('w:fill'), '7C3AED')
-        tcPr.append(shd)
-        cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
-    # data rows
-    for r_idx, row_data in enumerate(rows):
-        row = table.add_row()
-        fill = 'FFFFFF' if r_idx % 2 == 0 else 'F5F3FF'
-        for i, val in enumerate(row_data):
-            cell = row.cells[i]
-            cell.text = str(val)
-            run = cell.paragraphs[0].runs[0]
-            run.font.size = Pt(9.5)
-            tcPr = cell._tc.get_or_add_tcPr()
-            shd = OxmlElement('w:shd')
-            shd.set(qn('w:val'), 'clear')
-            shd.set(qn('w:color'), 'auto')
-            shd.set(qn('w:fill'), fill)
-            tcPr.append(shd)
-    if col_widths:
-        for i, w in enumerate(col_widths):
-            for row in table.rows:
-                row.cells[i].width = Inches(w)
-    doc.add_paragraph()
-    return table
-
-# ══════════════════════════════════════════════════════════════════════════════
-# TITLE PAGE
-# ══════════════════════════════════════════════════════════════════════════════
-title = doc.add_paragraph()
-title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-title.paragraph_format.space_before = Pt(60)
-run = title.add_run('VibeShift')
-run.bold = True
-run.font.size = Pt(36)
-run.font.color.rgb = PURPLE
-
-sub = doc.add_paragraph()
-sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
-run2 = sub.add_run('Database Architecture & REST API — Technical Reference')
-run2.font.size = Pt(16)
-run2.font.color.rgb = DARK
-
-doc.add_paragraph()
-byline = doc.add_paragraph()
-byline.alignment = WD_ALIGN_PARAGRAPH.CENTER
-byline.add_run('Final Year Project  ·  Backend Documentation').font.color.rgb = GREY
-
-doc.add_page_break()
-
-# ══════════════════════════════════════════════════════════════════════════════
-# 1. SYSTEM OVERVIEW
-# ══════════════════════════════════════════════════════════════════════════════
-heading1('1. System Overview')
-body(
-    'VibeShift is a cloud-based music transformation platform that lets users '
-    'separate audio tracks into individual stems (vocals, drums, bass, other) '
-    'and re-style entire songs into different musical genres. The backend is '
-    'built with FastAPI (Python), persists data in SQLite/PostgreSQL via SQLModel '
-    '(a Pydantic+SQLAlchemy hybrid), stores audio files in AWS S3, and offloads '
-    'heavy ML inference to a Google Colab notebook exposed over an ngrok tunnel.'
+# ── 5.1 ──────────────────────────────────────────────────────────────────────
+h2("5.1  Chapter Overview")
+para(
+    "This chapter presents the technical implementation of VibeShift, a mobile application "
+    "for AI-driven music transformation. It details the technology stack selection rationale, "
+    "frontend and backend architecture, AI microservice integration via the Replicate API, "
+    "asynchronous job processing, database schema design, and cloud storage configuration. "
+    "The system follows a client-server architecture in which a React Native mobile client "
+    "communicates with a Python FastAPI backend, which in turn delegates computationally "
+    "intensive AI workloads—stem separation and genre transformation—to Replicate's cloud-hosted "
+    "inference platform, eliminating the need for self-managed GPU infrastructure."
 )
 
-heading2('1.1 Technology Stack')
-simple_table(
-    ['Layer', 'Technology', 'Purpose'],
-    [
-        ['API Server',    'FastAPI 0.104 + Uvicorn',       'Async REST API, background task scheduling'],
-        ['ORM / DB',      'SQLModel 0.0.19 + SQLite',      'Type-safe DB models, automatic migrations'],
-        ['Authentication','Clerk (RS256 JWT / JWKS)',       'Passwordless auth, token verification'],
-        ['File Storage',  'AWS S3 (boto3)',                 'Audio upload / presigned-URL download'],
-        ['ML Back-end',   'Colab + ngrok (httpx)',          'Demucs stem separation, MusicGen transform'],
-        ['HTTP Client',   'httpx (async)',                  'Calling ML API from background tasks'],
-        ['Frontend',      'React Native / Expo 54',         'iOS & Android mobile app'],
-    ],
-    col_widths=[1.4, 2.1, 2.9]
+# ── 5.2 ──────────────────────────────────────────────────────────────────────
+h2("5.2  Technology Stack")
+
+h3("5.2.1  Frontend — React Native / Expo")
+para(
+    "The mobile client is built with React Native 0.81.5 and the Expo framework (v54.0.27), "
+    "enabling cross-platform deployment to iOS and Android from a single TypeScript 5.9.2 "
+    "codebase. Expo Router 6.0.17 provides file-based navigation. Key dependencies include:"
+)
+bullet("@clerk/clerk-expo ^2.19.31", bold_prefix="Authentication")
+bullet("react-native-svg 15.12.1", bold_prefix="Stem ring visualisation")
+bullet("react-native-reanimated ~4.1.1", bold_prefix="Gesture & animation")
+bullet("expo-linear-gradient", bold_prefix="UI gradients")
+bullet("expo-secure-store", bold_prefix="Secure JWT token storage")
+bullet("expo-av", bold_prefix="Audio playback")
+
+h3("5.2.2  Backend API — Python / FastAPI")
+para(
+    "The REST API is implemented in FastAPI 0.104.1, served by Uvicorn 0.24.0 under Gunicorn "
+    "as the process manager (300-second worker timeout to accommodate long-running AI calls). "
+    "SQLModel 0.0.19—a hybrid of Pydantic and SQLAlchemy—serves as the ORM. Additional key "
+    "libraries:"
+)
+bullet("httpx — async HTTP client for Replicate API calls")
+bullet("boto3 — AWS S3 integration")
+bullet("PyJWT[crypto] 2.8.0 — RS256 JWT verification")
+bullet("python-multipart — multipart/form-data file upload handling")
+
+h3("5.2.3  AI Microservices — Python / Replicate API")
+para(
+    "Rather than maintaining self-hosted GPU infrastructure, VibeShift delegates all AI inference "
+    "to Replicate, a managed cloud platform for running machine learning models on-demand. Two "
+    "models are integrated:"
+)
+bullet(
+    "cjwbw/demucs:25a173108cff36ef9f80f854c162d01df9e6528be175794b81158fa03836d953",
+    bold_prefix="Demucs (stem separation)"
+)
+bullet(
+    "meta/musicgen:7a76a8258b23fae65c5a22debb8841d1d7e816b75c2f24218cd2bd8573787906",
+    bold_prefix="MusicGen (genre transformation)"
+)
+para(
+    "Both models are invoked via Replicate's REST API using an API token, and results are "
+    "retrieved by polling the prediction status endpoint. Replicate charges per prediction "
+    "based on GPU compute time consumed."
 )
 
-# ══════════════════════════════════════════════════════════════════════════════
-# 2. DATABASE SCHEMA
-# ══════════════════════════════════════════════════════════════════════════════
-heading1('2. Database Schema')
-body(
-    'The application uses five tables managed by SQLModel. All primary keys are '
-    'UUIDs generated server-side. Timestamps default to UTC. The SQLite file '
-    'path is configurable via the DATABASE_URL environment variable; swapping '
-    'in a PostgreSQL connection string requires no code changes.'
+h3("5.2.4  Database — SQLite")
+para(
+    "SQLite is used as the application database through the SQLModel ORM. The database file "
+    "(vibeshift.db) resides on the backend server. SQLite provides sufficient performance and "
+    "zero-configuration setup for the current development and early-production phase. Five "
+    "tables store user data, job records, stem metadata, mix outputs, and transformation jobs."
 )
 
-# 2.1 users
-heading2('2.1  users')
-body('Stores one row per registered user, keyed by Clerk\'s user ID.')
-simple_table(
-    ['Column', 'Type', 'Constraints', 'Description'],
-    [
-        ['id',              'VARCHAR(UUID)',  'PK',                       'Internal UUID primary key'],
-        ['clerk_user_id',   'VARCHAR',        'UNIQUE, INDEX, NOT NULL',  'Clerk sub claim — stable across sessions'],
-        ['name',            'VARCHAR',        'NULLABLE',                 'Display name set by user'],
-        ['email',           'VARCHAR',        'UNIQUE, INDEX, NOT NULL',  'Email from Clerk'],
-        ['bio',             'VARCHAR',        'NULLABLE',                 'Short user bio (profile page)'],
-        ['avatar_url',      'VARCHAR',        'NULLABLE',                 'Base-64 data-URI of profile photo'],
-        ['audio_quality',   'VARCHAR',        'DEFAULT "high"',           'low | standard | high'],
-        ['export_format',   'VARCHAR',        'DEFAULT "wav"',            'mp3 | wav | flac'],
-        ['created_at',      'DATETIME',       'DEFAULT utcnow()',         'Account creation timestamp'],
-        ['updated_at',      'DATETIME',       'DEFAULT utcnow()',         'Last profile update timestamp'],
-    ],
-    col_widths=[1.4, 1.2, 1.5, 2.3]
+h3("5.2.5  Cloud Storage — AWS S3")
+para(
+    "All audio assets—uploaded songs, separated stems, edited stems, final mixes, and "
+    "transformation outputs—are persisted in an AWS S3 bucket (vibeshift-audio-storage) in "
+    "the ap-southeast-1 region. Clients receive pre-signed download URLs with a one-hour expiry, "
+    "ensuring time-limited, authenticated access without exposing permanent S3 credentials."
 )
 
-# 2.2 demix_jobs
-heading2('2.2  demix_jobs')
-body('Tracks the lifecycle of a stem-separation job from upload to completion.')
-simple_table(
-    ['Column', 'Type', 'Constraints', 'Description'],
-    [
-        ['id',                'VARCHAR(UUID)', 'PK',                   'Job UUID'],
-        ['user_id',           'VARCHAR(UUID)', 'FK → users.id, INDEX', 'Owning user'],
-        ['original_file_name','VARCHAR',       'NOT NULL',             'Original filename from upload'],
-        ['original_s3_key',   'VARCHAR',       'NOT NULL',             'S3 object key for raw audio'],
-        ['song_name',         'VARCHAR',       'NOT NULL',             'Derived from filename (sans extension)'],
-        ['duration_seconds',  'FLOAT',         'NULLABLE',             'Audio length returned by ML API'],
-        ['status',            'VARCHAR',       'DEFAULT "pending"',    'pending | processing | completed | failed'],
-        ['error_message',     'VARCHAR',       'NULLABLE',             'Failure reason if status=failed'],
-        ['created_at',        'DATETIME',      'DEFAULT utcnow()',     'Job submission time'],
-        ['updated_at',        'DATETIME',      'DEFAULT utcnow()',     'Last status-change time'],
-    ],
-    col_widths=[1.5, 1.2, 1.4, 2.3]
+h3("5.2.6  Replicate API Integration")
+para(
+    "VibeShift uses Replicate's hosted model infrastructure as its AI compute layer, replacing "
+    "the need for managed cloud deployment, Docker orchestration, or Kubernetes clusters. "
+    "Replicate provides on-demand GPU instances for each prediction request. The backend submits "
+    "predictions via Replicate's REST API and polls for results, keeping the application server "
+    "lightweight and stateless with respect to GPU resources."
 )
 
-# 2.3 stems
-heading2('2.3  stems')
-body('One row per audio stem within a demix job. Stores per-stem edit parameters used when mixing.')
-simple_table(
-    ['Column', 'Type', 'Constraints', 'Description'],
-    [
-        ['id',               'VARCHAR(UUID)', 'PK',                      'Stem UUID'],
-        ['job_id',           'VARCHAR(UUID)', 'FK → demix_jobs.id, INDEX','Parent demix job'],
-        ['stem_type',        'VARCHAR',       'NOT NULL',                 'vocals | drums | bass | other | custom_*'],
-        ['original_s3_key',  'VARCHAR',       'NOT NULL',                 'S3 key of raw stem from Demucs'],
-        ['modified_s3_key',  'VARCHAR',       'NULLABLE',                 'S3 key after ML applies pitch/timbre FX'],
-        ['pitch_shift',      'FLOAT',         'DEFAULT 0.0',              'Semitone offset (−12 to +12)'],
-        ['timbre_strength',  'FLOAT',         'DEFAULT 1.0',              'Timbre blend strength (0.0 – 1.0)'],
-        ['volume',           'FLOAT',         'DEFAULT 1.0',              'Linear volume multiplier'],
-        ['is_muted',         'BOOLEAN',       'DEFAULT False',            'Exclude stem from mix when True'],
-        ['created_at',       'DATETIME',      'DEFAULT utcnow()',         ''],
-        ['updated_at',       'DATETIME',      'DEFAULT utcnow()',         ''],
-    ],
-    col_widths=[1.5, 1.2, 1.4, 2.3]
+# ── 5.3 ──────────────────────────────────────────────────────────────────────
+h2("5.3  Frontend Implementation")
+
+h3("5.3.1  Component Architecture")
+para(
+    "The frontend is structured around Expo Router's file-based routing convention, "
+    "with a tab-based navigation shell and modal overlays for settings screens. The primary "
+    "screens are:"
+)
+bullet("demixing.tsx — stem separation upload and interactive editing interface")
+bullet("genre-transform.tsx — genre transformation with bubble selector and parameter controls")
+bullet("library.tsx — chronological history of the user's processed audio")
+bullet("profile.tsx — user profile display and statistics")
+bullet("account-settings.tsx, audio-preferences.tsx, appearance.tsx — configuration screens")
+para("Reusable UI components include:")
+bullet("StemMixer.tsx — orchestrates the full interactive stem control interface")
+bullet("StemRing.tsx — individual animated SVG ring representing one stem")
+bullet("GenreBubble.tsx — floating bubble UI element for genre selection")
+bullet("SongCard.tsx — card component for library song entries")
+bullet("UploadButton.tsx — audio file selection and upload trigger")
+
+h3("5.3.2  Stem Ring Visualisation")
+para(
+    "VibeShift replaces the conventional waveform display with a custom circular ring "
+    "visualisation purpose-built for multi-stem audio editing. Each audio stem (vocals, "
+    "drums, bass, other) is represented as a distinct coloured concentric ring rendered "
+    "using react-native-svg. The rings surround a central disc icon and visually communicate "
+    "each stem's identity through colour coding."
+)
+para(
+    "Users interact with each ring via PanResponder gesture handlers, dragging to adjust "
+    "volume, pitch shift (in semitones), and timbre strength in real time. The rings animate "
+    "rotation in response to gesture input using react-native-reanimated, providing "
+    "immediate tactile feedback. This design was chosen to make multi-track audio editing "
+    "intuitive on a mobile touchscreen without requiring a desktop-style DAW interface."
 )
 
-# 2.4 demix_mixes
-heading2('2.4  demix_mixes')
-body('Records each mix export. A user may re-mix the same job multiple times with different stem settings.')
-simple_table(
-    ['Column', 'Type', 'Constraints', 'Description'],
-    [
-        ['id',           'VARCHAR(UUID)', 'PK',                      'Mix UUID'],
-        ['job_id',       'VARCHAR(UUID)', 'FK → demix_jobs.id, INDEX','Parent demix job'],
-        ['output_s3_key','VARCHAR',       'NOT NULL',                 'S3 key of the rendered mix file'],
-        ['created_at',   'DATETIME',      'DEFAULT utcnow()',         'Time mix was created'],
-    ],
-    col_widths=[1.5, 1.2, 1.5, 2.2]
+h3("5.3.3  State Management")
+para(
+    "Application-wide state is managed through React Context. Two context providers are "
+    "registered at the root level:"
+)
+bullet("UserContext — authentication state, user profile data, and active session token")
+bullet("AppearanceContext — theming preferences (dark/light mode, accent colours)")
+para(
+    "The Clerk Expo SDK manages the authentication lifecycle. JWTs issued by Clerk are "
+    "persisted in expo-secure-store and retrieved on each API call, attached as a Bearer "
+    "token in the Authorization header. Component-local state (e.g., selected genre, "
+    "stem parameter sliders, upload progress) is managed with React useState hooks."
 )
 
-# 2.5 transform_jobs
-heading2('2.5  transform_jobs')
-body('Tracks genre-transformation requests from submission through ML processing to final output.')
-simple_table(
-    ['Column', 'Type', 'Constraints', 'Description'],
-    [
-        ['id',                'VARCHAR(UUID)', 'PK',                    'Transform job UUID'],
-        ['user_id',           'VARCHAR(UUID)', 'FK → users.id, INDEX',  'Owning user'],
-        ['original_file_name','VARCHAR',       'NOT NULL',              'Original upload filename'],
-        ['original_s3_key',   'VARCHAR',       'NOT NULL',              'S3 key of input audio'],
-        ['target_genre',      'VARCHAR',       'NOT NULL',              'Preset name or freeform prompt'],
-        ['prompt_used',       'VARCHAR',       'NULLABLE',              'Resolved prompt sent to MusicGen'],
-        ['output_s3_key',     'VARCHAR',       'NULLABLE',              'S3 key of transformed output'],
-        ['duration',          'FLOAT',         'DEFAULT 10.0',          'Audio clip length to transform (secs)'],
-        ['start_offset',      'FLOAT',         'DEFAULT 5.0',           'Start position in input audio (secs)'],
-        ['guidance',          'FLOAT',         'DEFAULT 9.5',           'MusicGen classifier-free guidance scale'],
-        ['vocal_mix',         'FLOAT',         'DEFAULT 1.5',           'Vocal loudness in final mix'],
-        ['instr_mix',         'FLOAT',         'DEFAULT 1.0',           'Instrumental loudness in final mix'],
-        ['status',            'VARCHAR',       'DEFAULT "pending"',     'pending | processing | completed | failed'],
-        ['error_message',     'VARCHAR',       'NULLABLE',              'Failure reason'],
-        ['created_at',        'DATETIME',      'DEFAULT utcnow()',      ''],
-        ['updated_at',        'DATETIME',      'DEFAULT utcnow()',      ''],
-    ],
-    col_widths=[1.5, 1.2, 1.4, 2.3]
+h3("5.3.4  Audio Playback & Controls")
+para(
+    "Audio playback is implemented using expo-av. The playback interface is integrated "
+    "directly with the stem editing UI, allowing users to audition the current mix while "
+    "adjusting stem parameters. After modifying stem settings (pitch, timbre, volume, mute), "
+    "the user triggers a re-mix request to the backend; once the new mix is returned, "
+    "the player seamlessly switches to the updated audio. Standard playback controls "
+    "(play, pause, seek) are rendered alongside the stem ring visualisation."
 )
 
-heading2('2.6  Entity Relationship Summary')
-body(
-    'users 1──* demix_jobs 1──* stems\n'
-    'demix_jobs 1──* demix_mixes\n'
-    'users 1──* transform_jobs'
+# ── 5.4 ──────────────────────────────────────────────────────────────────────
+h2("5.4  Backend Implementation")
+
+h3("5.4.1  API Design & Routing")
+para(
+    "The FastAPI application is organised into modular routers, each responsible for a "
+    "distinct domain:"
+)
+bullet("/auth/sync (POST) — creates or updates a user record from a validated Clerk JWT")
+bullet("/users/me (GET, PUT) — retrieves and updates the authenticated user's profile")
+bullet(
+    "/demixer/jobs (POST), /demixer/jobs/{id} (GET), "
+    "/demixer/stems/{id} (PUT), /demixer/jobs/{id}/mix (POST) "
+    "— full stem separation and mixing workflow"
+)
+bullet(
+    "/transform/genres (GET), /transform/jobs (POST), /transform/jobs/{id} (GET) "
+    "— genre transformation workflow"
+)
+bullet("/library (GET) — aggregated, date-sorted history of all user jobs")
+para(
+    "All endpoints return JSON-serialised Pydantic response models. HTTP status codes "
+    "follow REST conventions (201 for resource creation, 200 for retrieval, 4xx for "
+    "client errors, 5xx for server faults)."
 )
 
-# ══════════════════════════════════════════════════════════════════════════════
-# 3. AUTHENTICATION
-# ══════════════════════════════════════════════════════════════════════════════
-doc.add_page_break()
-heading1('3. Authentication')
-body(
-    'All protected endpoints require an HTTP Authorization header containing a '
-    'Bearer token issued by Clerk. The backend verifies this token locally '
-    'using Clerk\'s public JWKS endpoint — no secret-key round-trip is needed '
-    'after key caching.'
+h3("5.4.2  Authentication & Authorization (JWT)")
+para(
+    "Authentication is handled by Clerk. The frontend obtains a signed JWT from Clerk's "
+    "Expo SDK after the user logs in. On each protected API call, this token is sent "
+    "in the Authorization: Bearer header."
+)
+para(
+    "The backend validates the token using PyJWT with the RS256 algorithm. The public "
+    "key is fetched from Clerk's JWKS endpoint:"
+)
+code_block("https://hip-lobster-45.clerk.accounts.dev/.well-known/jwks.json")
+para(
+    "On successful verification, the sub claim is extracted as the clerk_user_id. "
+    "FastAPI's dependency injection system (Depends()) enforces this check on every "
+    "protected route. A second dependency, get_current_user(), resolves the clerk_user_id "
+    "to the corresponding User row in SQLite, scoping all subsequent queries to that user."
 )
 
-heading2('3.1  JWT Verification Flow')
-code_block([
-    '# /backend/auth.py (simplified)',
-    'import jwt',
-    '',
-    'jwks_client = jwt.PyJWKClient(CLERK_JWKS_URL, cache_keys=True)',
-    '',
-    'def get_clerk_user_id(credentials: HTTPAuthorizationCredentials) -> str:',
-    '    token   = credentials.credentials',
-    '    signing_key = jwks_client.get_signing_key_from_jwt(token)',
-    '    payload = jwt.decode(token, signing_key.key, algorithms=["RS256"])',
-    '    return payload["sub"]   # Clerk\'s stable user ID',
-])
-bullet('Algorithm: RS256 (asymmetric — Clerk signs with private key, backend verifies with public JWKS)')
-bullet('Key caching: Enabled — JWKS keys are fetched once and reused until expiry, reducing latency')
-bullet('On failure: HTTPException(401, "Invalid or expired token")')
-
-heading2('3.2  User Resolution Dependency')
-code_block([
-    'def get_current_user(clerk_id = Depends(get_clerk_user_id),',
-    '                     session  = Depends(get_session)) -> User:',
-    '    user = session.exec(select(User).where(User.clerk_user_id == clerk_id)).first()',
-    '    if not user:',
-    '        raise HTTPException(404, "User not found — call /auth/sync first")',
-    '    return user',
-])
-
-# ══════════════════════════════════════════════════════════════════════════════
-# 4. API REFERENCE
-# ══════════════════════════════════════════════════════════════════════════════
-heading1('4. REST API Reference')
-body(
-    'Base URL (development):  http://localhost:8000\n'
-    'Base URL (production):   https://<ec2-or-domain>/\n'
-    'All responses are JSON. All times are ISO 8601 UTC.'
+h3("5.4.3  File Upload & Validation")
+para(
+    "Audio files are accepted as multipart/form-data requests, parsed by python-multipart. "
+    "Upon receipt, the file is read into memory, content-typed, and uploaded to S3 under "
+    "the path:"
+)
+code_block("uploads/{user_id}/{job_id}/{original_filename}")
+para(
+    "A corresponding job record (demix_jobs or transform_jobs) is inserted into the database "
+    "with status='pending' and the S3 key stored for downstream processing. The API "
+    "immediately returns the job ID to the client so polling can begin."
 )
 
-# ── 4.1 Auth ──────────────────────────────────────────────────────────────────
-heading2('4.1  Authentication — POST /auth/sync')
-body(
-    'Called by the mobile app immediately after a successful Clerk sign-in. '
-    'Creates a new user row on first login; updates name/avatar on subsequent '
-    'calls. Returns the full user profile.'
+h3("5.4.4  Asynchronous Processing Pipeline")
+para(
+    "Job execution is handled asynchronously using FastAPI's built-in BackgroundTasks "
+    "mechanism. When a job is submitted, the HTTP response is returned immediately to the "
+    "client while a background coroutine begins executing the AI pipeline. The coroutine "
+    "updates the job's status field in the database as processing progresses:"
 )
-heading3('Request')
-code_block([
-    'POST /auth/sync',
-    'Authorization: Bearer <clerk_jwt>',
-    'Content-Type: application/json',
-    '',
-    '{',
-    '  "email":      "insiya@example.com",',
-    '  "name":       "Insiya",',
-    '  "avatar_url": "data:image/png;base64,iVBORw0KGgo..."',
-    '}',
-])
-heading3('Response  200 OK')
-code_block([
-    '{',
-    '  "id":             "3fa85f64-5717-4562-b3fc-2c963f66afa6",',
-    '  "clerk_user_id":  "user_2xAbCdEfGhIjKlMnOp",',
-    '  "email":          "insiya@example.com",',
-    '  "name":           "Insiya",',
-    '  "bio":            null,',
-    '  "avatar_url":     "data:image/png;base64,...",',
-    '  "audio_quality":  "high",',
-    '  "export_format":  "wav",',
-    '  "created_at":     "2024-11-01T08:00:00Z",',
-    '  "updated_at":     "2024-11-01T08:00:00Z"',
-    '}',
-])
-
-# ── 4.2 User ──────────────────────────────────────────────────────────────────
-heading2('4.2  User Profile')
-
-heading3('GET /users/me')
-body('Returns the authenticated user\'s profile augmented with aggregated statistics.')
-code_block([
-    'GET /users/me',
-    'Authorization: Bearer <clerk_jwt>',
-])
-heading3('Response  200 OK')
-code_block([
-    '{',
-    '  "id":              "3fa85f64-...",',
-    '  "name":            "Insiya",',
-    '  "email":           "insiya@example.com",',
-    '  "bio":             "Loves lo-fi beats",',
-    '  "audio_quality":   "high",',
-    '  "export_format":   "wav",',
-    '  "tracks_demixed":  7,',
-    '  "genres_changed":  3,',
-    '  "created_at":      "2024-11-01T08:00:00Z",',
-    '  "updated_at":      "2024-11-02T14:30:00Z"',
-    '}',
-])
-
-heading3('PUT /users/me')
-body('Partial update — omit any field you do not want to change.')
-code_block([
-    'PUT /users/me',
-    'Authorization: Bearer <clerk_jwt>',
-    'Content-Type: application/json',
-    '',
-    '{',
-    '  "name":           "Insiya F.",',
-    '  "bio":            "FYP developer",',
-    '  "audio_quality":  "standard",',
-    '  "export_format":  "mp3"',
-    '}',
-])
-
-# ── 4.3 Demixer ──────────────────────────────────────────────────────────────
-heading2('4.3  Demixer — Stem Separation')
-
-heading3('POST /demixer/jobs  —  Upload & start job')
-body(
-    'Accepts multipart audio upload. Saves the file to S3, creates a DemixJob '
-    'record, and schedules a background task that calls the Colab ML API. '
-    'Returns immediately with the job ID — the client must poll to track progress.'
-)
-code_block([
-    'POST /demixer/jobs',
-    'Authorization: Bearer <clerk_jwt>',
-    'Content-Type: multipart/form-data',
-    '',
-    'audio_file=<binary WAV or MP3>',
-])
-heading3('Response  200 OK')
-code_block([
-    '{',
-    '  "job_id":    "b1c2d3e4-...",',
-    '  "status":    "pending",',
-    '  "song_name": "my_track"',
-    '}',
-])
-
-heading3('GET /demixer/jobs/{job_id}  —  Poll status & stems')
-body('Returns job status and, once completed, per-stem download URLs and the latest mix URL.')
-code_block([
-    'GET /demixer/jobs/b1c2d3e4-...',
-    'Authorization: Bearer <clerk_jwt>',
-])
-heading3('Response  200 OK  (completed)')
-code_block([
-    '{',
-    '  "id":       "b1c2d3e4-...",',
-    '  "status":   "completed",',
-    '  "song_name": "my_track",',
-    '  "stems": [',
-    '    {',
-    '      "id":               "a1b2c3d4-...",',
-    '      "stem_type":        "vocals",',
-    '      "pitch_shift":      0.0,',
-    '      "timbre_strength":  1.0,',
-    '      "volume":           1.0,',
-    '      "is_muted":         false,',
-    '      "download_url":     "https://s3.amazonaws.com/...?X-Amz-Expires=3600"',
-    '    },',
-    '    { "stem_type": "drums",  ... },',
-    '    { "stem_type": "bass",   ... },',
-    '    { "stem_type": "other",  ... }',
-    '  ],',
-    '  "latest_mix_url": "https://s3.amazonaws.com/mixes/b1c2.../final_mix.wav?..."',
-    '}',
-])
-
-heading3('PUT /demixer/stems/{stem_id}  —  Edit stem parameters')
-body('Updates edit settings (stored in DB only — does not re-process audio). Changes take effect at the next /mix call.')
-code_block([
-    'PUT /demixer/stems/a1b2c3d4-...',
-    'Authorization: Bearer <clerk_jwt>',
-    'Content-Type: application/json',
-    '',
-    '{',
-    '  "pitch_shift":     2.5,',
-    '  "timbre_strength": 0.8,',
-    '  "volume":          1.2,',
-    '  "is_muted":        false',
-    '}',
-])
-
-heading3('POST /demixer/jobs/{job_id}/mix  —  Render final mix')
-body('Triggers background mixing of all stems using their current parameters. Creates a DemixMix record.')
-code_block([
-    'POST /demixer/jobs/b1c2d3e4-.../mix',
-    'Authorization: Bearer <clerk_jwt>',
-])
-heading3('Response  200 OK')
-code_block([
-    '{',
-    '  "mix_id": "f9e8d7c6-...",',
-    '  "status": "processing"',
-    '}',
-])
-
-# ── 4.4 Transform ──────────────────────────────────────────────────────────────
-heading2('4.4  Genre Transform')
-
-heading3('GET /transform/genres  —  Available genre presets')
-body('Public endpoint — no authentication required.')
-code_block([
-    '{',
-    '  "available_genres": ["blues","classical","country","disco",',
-    '                        "hiphop","jazz","metal","pop","reggae","rock"],',
-    '  "presets": {',
-    '    "pop":   "pop music, catchy melody, synth, upbeat, radio-friendly production",',
-    '    "rock":  "rock music, electric guitar, live drums, bass, energetic, band performance",',
-    '    "jazz":  "jazz music, improvised saxophone, swing rhythm, piano chords, double bass",',
-    '    "..."',
-    '  }',
-    '}',
-])
-
-heading3('POST /transform/jobs  —  Upload & start transformation')
-body(
-    'Accepts an audio file and a target genre. Optional parameters let the client '
-    'fine-tune how long a clip is transformed, where to start, and how the vocal '
-    'and instrumental are blended in the output. A freeform text string may be '
-    'supplied as target_genre to use a custom prompt instead of a preset.'
-)
-code_block([
-    'POST /transform/jobs',
-    'Authorization: Bearer <clerk_jwt>',
-    'Content-Type: multipart/form-data',
-    '',
-    'audio_file=<binary>',
-    'target_genre=jazz',
-    'duration=12',
-    'start_offset=8',
-    'guidance=9.5',
-    'vocal_mix=1.5',
-    'instr_mix=1.0',
-])
-heading3('Response  200 OK')
-code_block([
-    '{',
-    '  "job_id":       "c4d5e6f7-...",',
-    '  "status":       "pending",',
-    '  "target_genre": "jazz"',
-    '}',
-])
-
-heading3('GET /transform/jobs/{job_id}  —  Poll status')
-code_block([
-    '{',
-    '  "id":           "c4d5e6f7-...",',
-    '  "status":       "completed",',
-    '  "target_genre": "jazz",',
-    '  "prompt_used":  "jazz music, improvised saxophone, swing rhythm, ...",',
-    '  "download_url": "https://s3.amazonaws.com/transforms/c4d5.../output.wav?...",',
-    '  "created_at":   "2024-11-10T10:00:00Z"',
-    '}',
-])
-
-# ── 4.5 Library ──────────────────────────────────────────────────────────────
-heading2('4.5  Library — GET /library')
-body('Returns all demix and transform jobs for the authenticated user, sorted by creation date descending. Powers the Library tab in the app.')
-code_block([
-    'GET /library',
-    'Authorization: Bearer <clerk_jwt>',
-])
-heading3('Response  200 OK')
-code_block([
-    '{',
-    '  "items": [',
-    '    {',
-    '      "id":                "b1c2d3e4-...",',
-    '      "type":              "demix",',
-    '      "song_name":         "my_track",',
-    '      "original_file_name":"my_track.mp3",',
-    '      "status":            "completed",',
-    '      "duration_seconds":  213.4,',
-    '      "target_genre":      null,',
-    '      "created_at":        "2024-11-10T09:00:00Z"',
-    '    },',
-    '    {',
-    '      "id":                "c4d5e6f7-...",',
-    '      "type":              "transform",',
-    '      "song_name":         "my_track",',
-    '      "original_file_name":"my_track.mp3",',
-    '      "status":            "completed",',
-    '      "duration_seconds":  null,',
-    '      "target_genre":      "jazz",',
-    '      "created_at":        "2024-11-10T10:00:00Z"',
-    '    }',
-    '  ]',
-    '}',
-])
-
-# ── 4.6 Health ──────────────────────────────────────────────────────────────
-heading2('4.6  Health Check — GET /health')
-body('Returns server status and whether the ML API URL is configured. Used for deployment monitoring.')
-code_block([
-    '{ "status": "ok", "ml_api_url": "https://abc123.ngrok.io" }',
-])
-
-# ══════════════════════════════════════════════════════════════════════════════
-# 5. BACKGROUND TASKS
-# ══════════════════════════════════════════════════════════════════════════════
-doc.add_page_break()
-heading1('5. Background Task Processing')
-body(
-    'Heavy ML inference is handled outside the request/response cycle via '
-    'FastAPI\'s BackgroundTasks. This prevents HTTP timeout errors and lets '
-    'the API return immediately with a job ID for polling.'
+bullet("pending → processing: AI prediction submitted to Replicate")
+bullet("processing → completed: output stored in S3, download URL available to client")
+bullet("processing → failed: error message recorded for client display")
+para(
+    "The frontend polls the job status endpoint (GET /demixer/jobs/{id} or "
+    "GET /transform/jobs/{id}) at regular intervals until the status resolves. "
+    "The httpx async client is used for all outbound Replicate API calls, with a "
+    "600-second timeout for transformation jobs and a 120-second timeout for mix "
+    "operations. This design avoids the operational complexity of a dedicated message "
+    "queue while supporting fully non-blocking job execution."
 )
 
-heading2('5.1  _run_separation  (stem separation)')
-code_block([
-    'async def _run_separation(job_id, s3_key, filename, export_format):',
-    '    # 1. Update DB status → "processing"',
-    '    # 2. Download raw audio from S3',
-    '    async with httpx.AsyncClient(timeout=300) as client:',
-    '        resp = await client.post(',
-    '            f"{ML_API_URL}/separate",',
-    '            files={"audio": (filename, audio_bytes, "audio/wav")},',
-    '            data={"job_id": job_id, "export_format": export_format},',
-    '        )',
-    '    # ML response: {"stems": {"vocals": "s3_key", "drums": "s3_key", ...}}',
-    '    # 3. Create Stem rows in DB for each stem_type',
-    '    # 4. Update status → "completed"  (or "failed" with error_message)',
-])
+# ── 5.5 ──────────────────────────────────────────────────────────────────────
+h2("5.5  AI Microservices Implementation")
 
-heading2('5.2  _run_mix  (stem mixing)')
-code_block([
-    'async def _run_mix(job_id, mix_id, export_format):',
-    '    stems = session.exec(select(Stem).where(Stem.job_id == job_id))',
-    '    stems_payload = [',
-    '        {"stem_type": s.stem_type, "s3_key": s.original_s3_key,',
-    '         "pitch_shift": s.pitch_shift, "timbre_strength": s.timbre_strength,',
-    '         "volume": s.volume, "is_muted": s.is_muted}',
-    '        for s in stems',
-    '    ]',
-    '    async with httpx.AsyncClient(timeout=120) as client:',
-    '        resp = await client.post(f"{ML_API_URL}/mix", json={...})',
-    '    # ML response: {"output_s3_key": "mixes/{job_id}/final_mix.wav"}',
-    '    # Update DemixMix.output_s3_key in DB',
-])
+h3("5.5.1  Stem Separation — Demucs via Replicate")
+para(
+    "Stem separation is performed by the Demucs model hosted on Replicate "
+    "(cjwbw/demucs:25a173108cff36ef9f80f854c162d01df9e6528be175794b81158fa03836d953). "
+    "Demucs is a waveform-domain source separation model developed by Meta that separates "
+    "a mixed audio track into up to four stems: vocals, drums, bass, and other (all "
+    "remaining instruments)."
+)
+para("When a user submits a song for demixing, the backend executes the following steps:")
+bullet("The uploaded audio file is stored in S3 and a pre-signed URL is generated.")
+bullet("A prediction is submitted to Replicate's POST /v1/predictions endpoint with the S3 URL as the audio input.")
+bullet("The backend polls GET /v1/predictions/{id} until the prediction status equals 'succeeded'.")
+bullet("Replicate returns four separate WAV files (one per stem).")
+bullet("Each stem is downloaded and re-uploaded to S3; a stems table record is created for each.")
+bullet("The demix_job status is updated to 'completed' and stem download URLs are made available to the client.")
 
-heading2('5.3  _run_transform  (genre conversion)')
-code_block([
-    'async def _run_transform(job_id, export_format):',
-    '    # 1. Download original audio from S3',
-    '    # 2. POST to Colab /transform with all parameters',
-    '    async with httpx.AsyncClient(timeout=600) as client:',
-    '        resp = await client.post(',
-    '            f"{ML_API_URL}/transform",',
-    '            files={"audio": (filename, audio_bytes, "audio/wav")},',
-    '            data={',
-    '                "target_genre": job.target_genre,',
-    '                "duration":     str(job.duration),',
-    '                "start_offset": str(job.start_offset),',
-    '                "guidance":     str(job.guidance),',
-    '                "vocal_mix":    str(job.vocal_mix),',
-    '                "instr_mix":    str(job.instr_mix),',
-    '                "job_id":       job_id,',
-    '                "export_format":export_format,',
-    '            },',
-    '        )',
-    '    # ML response: {"output_s3_key": "...", "prompt_used": "..."}',
-    '    # Update TransformJob.output_s3_key, prompt_used, status → "completed"',
-])
-
-# ══════════════════════════════════════════════════════════════════════════════
-# 6. EXTERNAL SERVICE INTEGRATIONS
-# ══════════════════════════════════════════════════════════════════════════════
-heading1('6. External Service Integrations')
-
-heading2('6.1  AWS S3 — Audio Storage')
-body('All audio files (uploads, stems, mixes, transformed outputs) are stored in a single S3 bucket. The backend never exposes raw S3 credentials to clients; instead it generates short-lived presigned URLs.')
-
-simple_table(
-    ['Function', 'Direction', 'S3 Key Pattern', 'Expiry'],
-    [
-        ['upload_bytes()',        'App → S3', 'uploads/{user_id}/{job_id}/{filename}', '—'],
-        ['download_bytes()',      'S3 → ML',  'Same key as upload',                    '—'],
-        ['get_presigned_url()',   'S3 → App', 'Any key',                               '1 hour'],
-        ['delete_object()',       'S3',       'Any key',                               '—'],
-    ],
-    col_widths=[1.5, 1.2, 2.4, 0.8]
+h3("5.5.2  Genre Transformation Service")
+para(
+    "Genre transformation uses MusicGen (meta/musicgen), a melody-conditioned music "
+    "generation model from Meta, hosted on Replicate "
+    "(meta/musicgen:7a76a8258b23fae65c5a22debb8841d1d7e816b75c2f24218cd2bd8573787906). "
+    "The pipeline has two variants depending on whether the input song contains vocals."
 )
 
-heading2('6.2  Clerk — Identity & JWT')
-body(
-    'Clerk manages user registration, sign-in (email, Google, Apple), and '
-    'session tokens. The backend performs stateless verification using Clerk\'s '
-    'JWKS endpoint (RS256). No user passwords are stored.'
-)
-bullet('JWKS URL: https://<clerk-domain>/.well-known/jwks.json')
-bullet('Token claim used: sub → clerk_user_id (stable across sign-in methods)')
-bullet('POST /auth/sync must be called once per new Clerk user to create the local DB row')
-
-heading2('6.3  Google Colab ML API (ngrok)')
-body(
-    'The ML models (Demucs, MusicGen, BigVGAN) run inside a Google Colab '
-    'notebook to leverage free GPU allocation. An ngrok tunnel exposes the '
-    'Colab FastAPI server on a public HTTPS URL, which is pasted into the '
-    'backend .env as ML_API_URL.'
-)
-simple_table(
-    ['Endpoint', 'Model', 'Timeout', 'Description'],
-    [
-        ['POST /separate',   'Demucs (htdemucs)',            '300 s',  'Splits audio into 4 stems'],
-        ['POST /mix',        'scipy / librosa mixing',        '120 s',  'Combines stems with FX'],
-        ['POST /transform',  'MusicGen-melody + Demucs',      '600 s',  'Full genre transform pipeline'],
-        ['GET  /health',     '—',                             '10 s',   'Colab availability check'],
-    ],
-    col_widths=[1.5, 2.0, 0.9, 2.0]
+p = doc.add_paragraph()
+r = p.add_run("Instrumental-only songs:")
+r.bold = True
+r.underline = True
+para(
+    "The audio and genre text prompt are submitted directly to MusicGen on Replicate. "
+    "MusicGen conditions its generation on the melody of the input audio and the target "
+    "genre description, returning a transformed audio clip of the requested duration. "
+    "No stem separation is required."
 )
 
-# ══════════════════════════════════════════════════════════════════════════════
-# 7. ENVIRONMENT VARIABLES
-# ══════════════════════════════════════════════════════════════════════════════
-heading1('7. Environment Variables')
-simple_table(
-    ['Variable', 'Required', 'Default', 'Purpose'],
-    [
-        ['DATABASE_URL',           'No',  'sqlite:///./vibeshift.db',  'SQLAlchemy connection string'],
-        ['CLERK_SECRET_KEY',       'Yes', '—',                         'Clerk secret (sk_test_…)'],
-        ['CLERK_JWKS_URL',         'Yes', '—',                         'Clerk JWKS endpoint for JWT validation'],
-        ['AWS_ACCESS_KEY_ID',      'Yes', '—',                         'IAM access key for S3'],
-        ['AWS_SECRET_ACCESS_KEY',  'Yes', '—',                         'IAM secret key for S3'],
-        ['AWS_REGION',             'No',  'ap-southeast-1',            'S3 bucket region'],
-        ['S3_BUCKET_NAME',         'No',  'vibeshift-audio-storage',   'Target S3 bucket name'],
-        ['ML_API_URL',             'Yes', '(empty)',                    'Public ngrok URL for Colab ML server'],
-    ],
-    col_widths=[1.8, 0.8, 1.5, 2.3]
+p = doc.add_paragraph()
+r = p.add_run("Songs with vocals (full pipeline):")
+r.bold = True
+r.underline = True
+para("The pipeline executes five sequential stages:")
+
+bullet(
+    "Demucs (Replicate) separates the song into a vocals track and an instrumental track "
+    "(using the two-stem mode).",
+    bold_prefix="Stage 1 — Stem Separation"
+)
+bullet(
+    "MusicGen (Replicate) is applied to the instrumental track with the target genre prompt "
+    "and user-specified parameters: duration (1–60 s), start_offset (seconds into the "
+    "song to condition on), and guidance scale (3–15; higher values produce a stronger "
+    "genre shift).",
+    bold_prefix="Stage 2 — Genre Transformation of Instrumental"
+)
+bullet(
+    "The vocals track is processed through the VocalFX module, applying genre-specific "
+    "signal processing using scipy Butterworth filters. Effects per genre: "
+    "Rock/Metal — tanh distortion + high-pass filter (>2 kHz); "
+    "Pop — soft clipping + high-pass (>8 kHz); "
+    "Jazz — low-pass filter (<8 kHz); "
+    "Disco/Hip-Hop — delay echo (30 ms, 25% wet); "
+    "Country/Blues — vibrato modulation (5 Hz, 0.3% depth); "
+    "Reggae — delay (50 ms, 30% wet) + low-pass (<7 kHz); "
+    "Classical — high-pass (>120 Hz) + subtle delay (40 ms, 15% wet).",
+    bold_prefix="Stage 3 — Vocal FX"
+)
+bullet(
+    "Beat tracking is performed on both the processed vocals and the MusicGen output "
+    "using librosa.beat.beat_track(). The vocal track's tempo is adjusted to match the "
+    "transformed instrumental via librosa.effects.time_stretch(), with the stretch ratio "
+    "clamped to [0.7, 1.5] to prevent artefacts. The vocals are resampled to match the "
+    "MusicGen output's sample rate.",
+    bold_prefix="Stage 4 — Tempo Matching"
+)
+bullet(
+    "The transformed instrumental and tempo-matched vocals are combined: "
+    "output = (instrumental × instr_mix) + (vocals × vocal_mix). The result is "
+    "peak-normalised to 0.95 headroom to prevent clipping and saved as the final output WAV.",
+    bold_prefix="Stage 5 — Final Mix"
 )
 
-# ══════════════════════════════════════════════════════════════════════════════
-# 8. END-TO-END WORKFLOWS
-# ══════════════════════════════════════════════════════════════════════════════
-doc.add_page_break()
-heading1('8. End-to-End Workflow Scenarios')
-
-heading2('8.1  Stem Demixing & Custom Mix')
-steps = [
-    ('Upload audio',            'App → POST /demixer/jobs (multipart)'),
-    ('API saves to S3',         'Uploads raw audio; creates DemixJob (status=pending)'),
-    ('Background task fires',   'Downloads from S3 → POST ML /separate (Demucs, ~1–3 min)'),
-    ('Stems stored',            'Stem rows created in DB; DemixJob status → completed'),
-    ('App polls',               'GET /demixer/jobs/{id} until status="completed"'),
-    ('App fetches stems',       'Response includes presigned S3 URLs per stem (1-hr expiry)'),
-    ('User edits stems',        'App sends PUT /demixer/stems/{id} for each changed stem'),
-    ('User requests mix',       'App → POST /demixer/jobs/{id}/mix'),
-    ('Background task fires',   'Sends stem params to ML /mix → result saved to S3'),
-    ('App polls → download',    'GET /demixer/jobs/{id} returns latest_mix_url'),
-]
-for i, (label, detail) in enumerate(steps, 1):
-    p = doc.add_paragraph()
-    p.paragraph_format.left_indent = Inches(0.3)
-    p.paragraph_format.space_after = Pt(2)
-    run_num = p.add_run(f'{i}. ')
-    run_num.bold = True
-    run_num.font.color.rgb = PURPLE
-    run_num.font.size = Pt(10.5)
-    run_label = p.add_run(f'{label}:  ')
-    run_label.bold = True
-    run_label.font.size = Pt(10.5)
-    run_detail = p.add_run(detail)
-    run_detail.font.size = Pt(10.5)
-    run_detail.font.color.rgb = GREY
-
-doc.add_paragraph()
-
-heading2('8.2  Genre Transformation')
-steps2 = [
-    ('Select genre + upload',  'App → POST /transform/jobs (audio_file + target_genre + params)'),
-    ('API saves & schedules',  'Raw audio → S3; TransformJob created (status=pending)'),
-    ('Background task fires',  'Downloads audio → POST ML /transform (MusicGen pipeline, up to 10 min)'),
-    ('ML pipeline',            'Demucs separates vocals ▸ MusicGen generates new instrumental ▸ blend'),
-    ('Output saved',           'Output audio → S3; prompt_used recorded; status → completed'),
-    ('App polls',              'GET /transform/jobs/{id} until status="completed"'),
-    ('App downloads',          'Presigned download_url returned in response'),
-]
-for i, (label, detail) in enumerate(steps2, 1):
-    p = doc.add_paragraph()
-    p.paragraph_format.left_indent = Inches(0.3)
-    p.paragraph_format.space_after = Pt(2)
-    run_num = p.add_run(f'{i}. ')
-    run_num.bold = True
-    run_num.font.color.rgb = PURPLE
-    run_num.font.size = Pt(10.5)
-    run_label = p.add_run(f'{label}:  ')
-    run_label.bold = True
-    run_label.font.size = Pt(10.5)
-    run_detail = p.add_run(detail)
-    run_detail.font.size = Pt(10.5)
-    run_detail.font.color.rgb = GREY
-
-# ══════════════════════════════════════════════════════════════════════════════
-# 9. ERROR HANDLING
-# ══════════════════════════════════════════════════════════════════════════════
-heading1('9. Error Handling')
-simple_table(
-    ['Scenario', 'HTTP Code', 'Response Body', 'Resolution'],
-    [
-        ['Invalid / expired JWT',           '401', '{"detail": "Invalid token"}',       'Re-sign-in via Clerk'],
-        ['User not in DB (unsync\'d)',       '404', '{"detail": "User not found"}',      'Call POST /auth/sync'],
-        ['ML API unreachable',              '500', '{"detail": "ML API error: ..."}',   'Restart Colab + update ML_API_URL'],
-        ['Job ID not found',               '404', '{"detail": "Job not found"}',        'Verify job_id'],
-        ['Transform duration > 60 s',      '422', 'Pydantic validation error',          'Keep duration ≤ 60 s'],
-        ['S3 upload fails',                '500', 'error_message in job row',            'Check AWS credentials / bucket policy'],
-        ['Stem separation fails (Demucs)', 'n/a', 'status="failed" in DB',              'Job status endpoint returns error_message'],
-    ],
-    col_widths=[1.8, 0.9, 1.9, 1.8]
+p = doc.add_paragraph()
+r = p.add_run("Genre Prompt System:")
+r.bold = True
+para(
+    "Ten genre presets are built in (blues, classical, country, disco, hiphop, jazz, metal, "
+    "pop, reggae, rock), each mapped to a detailed descriptive text prompt that guides "
+    "MusicGen's generation. Users may additionally supply a free-form custom prompt to target "
+    "styles outside the preset list."
 )
 
-# ══════════════════════════════════════════════════════════════════════════════
-# 10. ML MODULES
-# ══════════════════════════════════════════════════════════════════════════════
-heading1('10. ML Module Architecture')
+h3("5.5.3  Stem Editing — editor.py and mixer.py")
+para(
+    "After Demucs separation, users adjust individual stems through the frontend before "
+    "requesting a final mix. Two local processing modules handle this on the backend:"
+)
+bullet(
+    "Loads stem audio from S3. Applies pitch shifting in semitone increments using "
+    "librosa.effects.pitch_shift(). Applies timbre modification via Harmonic-Percussive "
+    "Source Separation (HPSS): the harmonic component is emphasised by a configurable "
+    "strength factor (1.0 = no change; >1.0 = more harmonic character), enabling tonal "
+    "texture adjustments without altering pitch.",
+    bold_prefix="editor.py"
+)
+bullet(
+    "Combines all stems with their current volume, pitch, and timbre settings applied. "
+    "Each stem array is converted to mono, zero-padded to the length of the longest stem, "
+    "summed, and normalised. The final mix is exported as a WAV file, stored in S3, and a "
+    "demix_mixes record is created.",
+    bold_prefix="mixer.py"
+)
 
-heading2('10.1  Demixer Pipeline')
-bullet('Model: Demucs htdemucs (hybrid Transformer + U-Net)')
-bullet('Output: 4 stems — vocals, drums, bass, other — uploaded to S3')
-bullet('Post-processing: pitch_shift (librosa), timbre blending, volume scaling, muting')
-bullet('Mixing: numpy/scipy weighted sum of stems → final WAV/MP3/FLAC')
+# ── 5.6 ──────────────────────────────────────────────────────────────────────
+h2("5.6  Database Implementation")
 
-heading2('10.2  Genre Transform Pipeline (MusicGen approach)')
-bullet('Step 1 — Demucs: isolate vocals from input audio')
-bullet('Step 2 — Vocal FX: apply genre-specific effects (reverb, EQ, chorus) to vocals')
-bullet('Step 3 — MusicGen (facebook/musicgen-melody): condition on genre prompt → generate new instrumental')
-bullet('Step 4 — Tempo Match: stretch MusicGen output to match input BPM')
-bullet('Step 5 — Mix: blend FX vocals (vocal_mix) + generated instrumental (instr_mix)')
-bullet('Model sample rate: 32 000 Hz; output resampled to match input sample rate')
+h3("5.6.1  Schema Implementation")
+para(
+    "The SQLite database comprises five tables, defined via SQLModel and automatically "
+    "migrated on application startup."
+)
+bullet(
+    "Stores user profiles synchronised from Clerk. Fields: id (UUID PK), clerk_user_id "
+    "(unique), email (unique), name, bio, avatar_url, audio_quality ('high' | 'standard' | "
+    "'low'), export_format ('wav' | 'mp3' | 'flac'), created_at, updated_at.",
+    bold_prefix="users"
+)
+bullet(
+    "Tracks stem-separation jobs. Fields: id (UUID PK), user_id (FK → users), "
+    "original_file_name, original_s3_key, song_name, duration_seconds, status "
+    "('pending' | 'processing' | 'completed' | 'failed'), error_message, timestamps.",
+    bold_prefix="demix_jobs"
+)
+bullet(
+    "One row per separated stem per job. Fields: id (UUID PK), job_id (FK → demix_jobs), "
+    "stem_type ('vocals' | 'drums' | 'bass' | 'other'), original_s3_key, modified_s3_key, "
+    "pitch_shift (float, default 0.0), timbre_strength (float, default 1.0), volume "
+    "(float, default 1.0), is_muted (boolean), timestamps.",
+    bold_prefix="stems"
+)
+bullet(
+    "Records final mixed outputs. Fields: id (UUID PK), job_id (FK → demix_jobs), "
+    "output_s3_key, created_at.",
+    bold_prefix="demix_mixes"
+)
+bullet(
+    "Tracks genre transformation jobs. Fields: id (UUID PK), user_id (FK → users), "
+    "original_file_name, original_s3_key, target_genre, prompt_used, output_s3_key, "
+    "duration (default 10.0 s), start_offset (default 5.0 s), guidance (default 9.5), "
+    "vocal_mix (default 1.5), instr_mix (default 1.0), status, error_message, timestamps.",
+    bold_prefix="transform_jobs"
+)
 
-heading2('10.3  CycleGAN Approach (Research Track)')
-bullet('Converts audio → 80-bin log Mel-spectrogram → treated as 2D image')
-bullet('Architecture: Encoder → 6 ResBlocks → Decoder (instance normalisation)')
-bullet('Discriminator: PatchGAN (70×70 receptive field)')
-bullet('Losses: Adversarial + Cycle Consistency (λ=10) + Identity (λ=5) + Multi-Scale STFT')
-bullet('Reconstruction: BigVGAN-v2 (Hugging Face) converts Mel back to waveform')
-bullet('Dataset: GTZAN (1 000 clips, 10 genres, 30 s each)')
+h3("5.6.2  Indexing Strategy")
+para(
+    "Indexes are placed on columns that appear frequently in WHERE clauses and JOIN "
+    "conditions, reducing full-table scans on high-traffic query paths:"
+)
+bullet("users: clerk_user_id (unique index), email (unique index) — resolved on every authenticated request")
+bullet("demix_jobs: user_id — used by library and status-polling queries; status — used for queue monitoring")
+bullet("stems: job_id — used when loading all stems for a given job")
+bullet("demix_mixes: job_id — used when retrieving the latest mix output for a job")
+bullet("transform_jobs: user_id — used by library queries; target_genre — used for analytics; status — used for queue monitoring")
 
-# ══════════════════════════════════════════════════════════════════════════════
-# SAVE
-# ══════════════════════════════════════════════════════════════════════════════
-output_path = r'c:\Users\Insiya Fakhruddin\Desktop\fyp_project\VibeShift_Database_API_Report.docx'
+# ── 5.7 ──────────────────────────────────────────────────────────────────────
+h2("5.7  Replicate API Integration")
+para(
+    "Replicate serves as the AI compute backbone of VibeShift, providing on-demand access "
+    "to GPU-accelerated machine learning models through a unified REST API. This section "
+    "describes how the backend integrates with Replicate for both stem separation and "
+    "genre transformation."
+)
+
+h3("5.7.1  Replicate Platform Overview")
+para(
+    "Replicate hosts versioned, containerised ML models and exposes them via a Predictions API. "
+    "Each model version is identified by a deterministic hash "
+    "(model_owner/model_name:version_hash), ensuring reproducibility across calls. Compute is "
+    "billed per prediction based on actual GPU wall-clock time, making it cost-efficient for "
+    "workloads with variable and unpredictable request frequency. VibeShift uses two hosted "
+    "models: Demucs for audio source separation and MusicGen for melody-conditioned music "
+    "generation."
+)
+
+h3("5.7.2  Prediction Lifecycle")
+para("Every Replicate-backed job in VibeShift follows a five-step lifecycle:")
+bullet("The backend constructs a prediction request payload with the model version hash and input parameters (audio S3 URL, genre prompt, duration, guidance scale, etc.).")
+bullet("A POST to Replicate's /v1/predictions endpoint creates the prediction and returns a prediction ID immediately.")
+bullet("The backend enters a polling loop, calling GET /v1/predictions/{id} at intervals until the status field equals 'succeeded' or 'failed'.")
+bullet("On success, the output field in the response contains one or more URLs pointing to Replicate-hosted output WAV files.")
+bullet("The backend downloads each output file, stores it in S3, and updates the corresponding job record in the database to 'completed'.")
+
+h3("5.7.3  Demucs Configuration")
+para(
+    "The Demucs model is called with the audio S3 URL as its primary input. Replicate returns "
+    "four output URLs corresponding to the vocals, drums, bass, and other stems. For the genre "
+    "transformation pipeline, the two-stem variant is used (vocals + instrumental) by passing "
+    "the appropriate model parameter. The model version pinned in production is:"
+)
+code_block("cjwbw/demucs:25a173108cff36ef9f80f854c162d01df9e6528be175794b81158fa03836d953")
+
+h3("5.7.4  MusicGen Configuration")
+para(
+    "MusicGen is called with the instrumental audio URL and the target genre text prompt. "
+    "The key configurable parameters passed per request are:"
+)
+bullet("prompt — descriptive genre text (e.g., 'jazz music, piano, upright bass, trumpet, swing, improvisation')")
+bullet("duration — output length in seconds (range: 1–60)")
+bullet("guidance — classifier-free guidance scale (range: 3–15); higher values produce output that adheres more strongly to the text prompt")
+bullet("model_version — set to 'melody' to enable melody-conditioning from the input audio")
+para("The model version pinned in production is:")
+code_block("meta/musicgen:7a76a8258b23fae65c5a22debb8841d1d7e816b75c2f24218cd2bd8573787906")
+
+h3("5.7.5  Error Handling & Timeouts")
+para(
+    "If Replicate returns a prediction with status='failed', the error detail from the "
+    "response is stored in the job's error_message field and the job is marked 'failed'. "
+    "The frontend surfaces this message to the user. The httpx async client enforces a "
+    "600-second timeout on transformation predictions and a 120-second timeout on mix "
+    "operations, after which the job is marked failed with a timeout error. Replicate API "
+    "credentials are stored exclusively as server-side environment variables and are never "
+    "logged or transmitted to the client."
+)
+
+# ── Save ──────────────────────────────────────────────────────────────────────
+output_path = r"C:\Users\Insiya Fakhruddin\Desktop\Chapter5_Implementation.docx"
 doc.save(output_path)
-print(f'Saved: {output_path}')
+print(f"Saved: {output_path}")

@@ -25,10 +25,15 @@ export default function HomeScreen() {
   const isWide = Platform.OS === 'web' ? width >= 900 : false;
   const [recentSongs, setRecentSongs] = useState<{ id: string; title: string; editedDate: string }[]>([]);
 
+  // Wait for UserContext sync (profile.id set) before fetching — avoids racing
+  // POST /auth/sync and getting a 404 from get_current_user on every fresh login.
   useEffect(() => {
+    if (!profile?.id) return;
     (async () => {
       try {
-        const token = await getToken();
+        let token = await getToken();
+        if (!token) token = await getToken({ skipCache: true } as any);
+        if (!token) return;
         const res = await fetch(`${API_URL}/library`, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -43,7 +48,7 @@ export default function HomeScreen() {
         }
       } catch (_) {}
     })();
-  }, []);
+  }, [profile?.id]);
 
   return (
     <ThemedView style={styles.container}>
