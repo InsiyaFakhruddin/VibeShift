@@ -1,6 +1,10 @@
 # VibeShift — AI Music Transformation App
 
-> **Final Year Project (FYP-2)** — A full-stack AI-powered mobile app for music genre transformation and stem demixing, built with React Native (Expo) and FastAPI.
+> What if you could take any song and hear it as jazz, metal, or reggae — in seconds?
+
+Music genre transformation has always lived behind studio walls and expensive software. VibeShift brings it to your phone. Upload a track, pick a genre, and let AI rebuild it — separating vocals from instruments, regenerating the sound in a new style, and blending everything back together. Or go deeper: pull a song apart stem by stem, tweak the vocals, adjust the mix, and export something entirely your own.
+
+Built as a full-stack mobile app with React Native, FastAPI, and state-of-the-art models (Demucs + MusicGen via Replicate) — no music production knowledge required.
 
 ---
 
