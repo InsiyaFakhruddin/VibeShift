@@ -398,8 +398,9 @@ See [AWS_DEPLOYMENT_GUIDE.md](AWS_DEPLOYMENT_GUIDE.md) for full deployment steps
 
 | Name | Role |
 |---|---|
-| Insiya Fakhruddin | Full-stack development (FYP-2) |
-| Mehreen Saghar | Collaborator |
+| Insiya Fakhruddin | Full-stack development(React Native + Database instegrated to backend) |
+| Mehreen Saghar | Backend Engineer (trained ML models (CGAN) and implemented the backend logic) |
+| Fatima Zafar | Research Engineer (researched on new and updated versions of models and how they could be integrated) |
 
 ---
 
