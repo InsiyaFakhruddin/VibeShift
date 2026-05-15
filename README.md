@@ -136,30 +136,51 @@ fyp_project/
 ### Prerequisites
 - Python 3.10+
 - Node.js 18+
-- Expo Go app on your phone (or iOS Simulator / Android Emulator)
+- Expo Go app on your phone (Android/iOS)
 - [Clerk](https://clerk.com) account (free tier works)
 - [Replicate](https://replicate.com) account
 - AWS account with an S3 bucket
 
 ---
 
-### Backend Setup
+### Step 0 — Find Your Local IP
+
+Your phone and computer must be on the **same WiFi network**. The frontend needs your machine's local IP so it can reach the backend.
+
+**Windows:**
+```powershell
+ipconfig
+# Look for "IPv4 Address" under your WiFi adapter — e.g. 192.168.1.5
+```
+
+**Mac/Linux:**
+```bash
+ifconfig | grep "inet " | grep -v 127.0.0.1
+```
+
+You'll use this IP in the frontend `.env` as `EXPO_PUBLIC_API_URL`.
+
+---
+
+### Step 1 — Backend (Terminal 1)
 
 ```bash
 cd backend
 
-# Create and activate virtual environment
+# First time only: create virtual environment
 python -m venv venv
+
+# Activate it (run this every time you open a new terminal)
 # Windows:
 venv\Scripts\activate
 # Mac/Linux:
 source venv/bin/activate
 
-# Install dependencies
+# First time only: install dependencies
 pip install -r requirements.txt
 ```
 
-Create `backend/.env` (never commit this file):
+Create `backend/.env` — **never commit this file**:
 ```env
 CLERK_ISSUER=https://your-clerk-domain.clerk.accounts.dev
 CLERK_JWKS_URL=https://your-clerk-domain.clerk.accounts.dev/.well-known/jwks.json
@@ -170,38 +191,82 @@ AWS_REGION=us-east-1
 S3_BUCKET_NAME=your-bucket-name
 
 REPLICATE_API_TOKEN=your-replicate-token
+
+# Required for Stem Mixer — paste ngrok URL from the Colab notebook
+COLAB_API_URL=https://your-ngrok-url.ngrok-free.dev
 ```
 
-Run the server:
+**Start the backend:**
 ```bash
 uvicorn main:app --host 0.0.0.0 --port 8001 --reload
 ```
 
-The API will be available at `http://localhost:8001`. Interactive docs at `http://localhost:8001/docs`.
+You should see:
+```
+✅ JWKS keys pre-fetched
+INFO:     Uvicorn running on http://0.0.0.0:8001
+```
+
+Interactive API docs available at: `http://localhost:8001/docs`
 
 ---
 
-### Frontend Setup
+### Step 2 — Frontend (Terminal 2)
+
+Open a **second terminal** — keep Terminal 1 running.
 
 ```bash
 cd frontend/VibeShift
+
+# First time only: install dependencies
 npm install
 ```
 
-Create `frontend/VibeShift/.env` (never commit this file):
+Create `frontend/VibeShift/.env` — **never commit this file**:
 ```env
 EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_your-clerk-publishable-key
 EXPO_PUBLIC_API_URL=http://YOUR_LOCAL_IP:8001
 ```
 
-> **Note:** Use your machine's local network IP (e.g. `192.168.1.x`), not `localhost`, so your phone can reach the backend over WiFi.
+> Replace `YOUR_LOCAL_IP` with the IP you found in Step 0 (e.g. `http://192.168.1.5:8001`).  
+> Do **not** use `localhost` — your phone cannot reach localhost on your computer.
 
-Start the app:
+**Start the app:**
 ```bash
 npx expo start
 ```
 
-Scan the QR code with **Expo Go** (Android) or the Camera app (iOS).
+A QR code will appear in the terminal. Scan it with:
+- **Android** — Expo Go app
+- **iPhone** — the default Camera app
+
+The app will load on your phone. Both terminals must stay running while using the app.
+
+---
+
+### Step 3 — Stem Mixer (Colab, optional)
+
+The Stem Mixer (pitch shifting + custom mix) requires the Colab notebook to be running:
+
+1. Open `notebooks/mixer_notebook.ipynb` in Google Colab
+2. Set your ngrok auth token in cell 6
+3. Run all cells — copy the printed ngrok URL
+4. Paste it into `backend/.env` as `COLAB_API_URL=https://...`
+5. Restart Terminal 1 (the backend)
+
+Without this, all other features (genre transform, demixing, library, profile) work normally.
+
+---
+
+### Daily Workflow (after first-time setup)
+
+```
+Terminal 1:  cd backend  →  venv\Scripts\activate  →  uvicorn main:app --host 0.0.0.0 --port 8001 --reload
+Terminal 2:  cd frontend/VibeShift  →  npx expo start
+Phone:       scan QR code in Expo Go
+```
+
+If your WiFi IP changed (common on home networks), update `EXPO_PUBLIC_API_URL` in `frontend/VibeShift/.env` and restart Terminal 2.
 
 ---
 
