@@ -9,6 +9,11 @@ from database import User, get_session
 _bearer = HTTPBearer()
 _jwks_client = None
 
+# Cache lifetime 1 hour — reduces JWKS refetch frequency.
+# timeout=8 prevents urlopen from hanging indefinitely on slow/unreachable Clerk servers.
+_JWKS_CACHE_SECONDS = 3600
+_JWKS_TIMEOUT = 8
+
 
 def _get_jwks_client() -> jwt.PyJWKClient:
     global _jwks_client
@@ -16,8 +21,22 @@ def _get_jwks_client() -> jwt.PyJWKClient:
         url = os.getenv("CLERK_JWKS_URL", "")
         if not url:
             raise RuntimeError("CLERK_JWKS_URL not set in environment")
-        _jwks_client = jwt.PyJWKClient(url, cache_keys=True)
+        _jwks_client = jwt.PyJWKClient(
+            url,
+            cache_keys=True,
+            lifespan=_JWKS_CACHE_SECONDS,
+            timeout=_JWKS_TIMEOUT,
+        )
     return _jwks_client
+
+
+def warmup_jwks() -> None:
+    """Pre-fetch JWKS keys at startup so the first real request isn't blocked."""
+    try:
+        client = _get_jwks_client()
+        client.fetch_data()
+    except Exception as exc:
+        print(f"⚠️  JWKS warmup failed (auth will retry on first request): {exc}")
 
 
 def _verify_token(token: str) -> str:

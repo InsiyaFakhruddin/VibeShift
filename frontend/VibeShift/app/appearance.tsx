@@ -42,7 +42,7 @@ export default function Appearance() {
 
             <View style={[styles.row, { backgroundColor: t.card, borderColor: t.border }]}>
               <View style={[styles.iconCircle, { backgroundColor: `${t.accent}20` }]}>
-                <Icon name="disc-3" size={20} color={t.accent} />
+                <Icon name="vibeshift-logo" size={40} color={t.accent} />
               </View>
               <View style={styles.rowInfo}>
                 <Text style={[styles.rowTitle, { color: t.text }]}>Dark Mode</Text>

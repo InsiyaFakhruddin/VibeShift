@@ -653,9 +653,7 @@ export default function Demixing() {
           <View style={styles.header}>
             <View style={styles.headerTopRow}>
               <View style={styles.logoRow}>
-                <View style={[styles.logoBall, { backgroundColor: t.accent, shadowColor: t.accent }]}>
-                  <Icon name="disc-3" size={20} color="#fff" />
-                </View>
+                <Icon name="vibeshift-logo" size={40} color={t.accent} />
                 <View>
                   <Text style={[styles.appName, { color: t.text }]}>VibeShift</Text>
                   <Text style={[styles.greeting, { color: t.subtitle }]}>Hi {profile?.name || 'there'}</Text>

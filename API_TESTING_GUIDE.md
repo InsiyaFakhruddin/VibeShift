@@ -1,314 +1,215 @@
-# Testing & Integration Guide
+# API Testing Guide — VibeShift
 
-## Local Testing
+The VibeShift backend is a FastAPI app running on port `8001`. All endpoints (except `/auth/sync`) require a valid Clerk JWT in the `Authorization: Bearer <token>` header.
 
-### 1. Install Additional Dependencies
+---
+
+## Running the Backend Locally
+
 ```bash
-pip install fastapi uvicorn python-multipart
+cd backend
+venv\Scripts\activate          # Windows
+# source venv/bin/activate     # Mac/Linux
+
+uvicorn main:app --host 0.0.0.0 --port 8001 --reload
 ```
 
-### 2. Run API Locally
+Interactive API docs (Swagger UI): `http://localhost:8001/docs`
+
+---
+
+## Getting a Token for Testing
+
+1. Open the VibeShift app and log in
+2. In your backend console you will see requests with the Bearer token in the Authorization header
+3. Copy that token — it's valid for ~60 minutes
+
+Or use the Clerk Dashboard → Users → click user → "Sessions" to generate a short-lived token.
+
+---
+
+## Endpoints
+
+### Auth Sync (called automatically on login)
+
 ```bash
-# In the backend/modules/genre_transform/musicgen directory
-cd backend/modules/genre_transform/musicgen
-uvicorn api:app --reload --host 0.0.0.0 --port 8000
+curl -X POST http://localhost:8001/auth/sync \
+  -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
-The API will be available at `http://localhost:8000`
+Expected: `{"synced": true, "user_id": "..."}`
 
-### 3. Test Endpoints
+---
 
-#### Health Check
+### User Profile
+
+**Get profile:**
 ```bash
-curl http://localhost:8000/health
+curl http://localhost:8001/users/me \
+  -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
-#### List Available Genres
+**Update profile:**
 ```bash
-curl http://localhost:8000/genres
+curl -X PATCH http://localhost:8001/users/me \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Insiya", "bio": "Music lover", "audio_quality": "high", "export_format": "wav"}'
 ```
 
-#### Transform Audio
+---
+
+### Genre Transform
+
+**List available genres:**
 ```bash
-curl -X POST http://localhost:8000/transform \
+curl http://localhost:8001/transform/genres \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+Expected: list of 10 genres (blues, classical, country, disco, hiphop, jazz, metal, pop, reggae, rock)
+
+**Start a transform job:**
+```bash
+curl -X POST http://localhost:8001/transform/jobs \
+  -H "Authorization: Bearer YOUR_TOKEN" \
   -F "audio_file=@path/to/song.mp3" \
   -F "target_genre=rock" \
   -F "duration=10" \
   -F "start_offset=5" \
-  --output output.wav
+  -F "guidance=9.5" \
+  -F "vocal_mix=1.5" \
+  -F "instr_mix=1.0"
 ```
 
-#### Using Postman
-1. Create POST request to `http://localhost:8000/transform`
-2. Body → form-data:
-   - `audio_file`: select file
-   - `target_genre`: `rock` (or other)
-   - `duration`: `10`
-   - `start_offset`: `5`
-   - `guidance`: `9.5`
-   - `vocal_mix`: `1.5`
-   - `instr_mix`: `1.0`
-3. Send and download the WAV response
+Expected: `{"job_id": "...", "status": "pending", "target_genre": "rock"}`
 
----
-
-## Frontend Integration
-
-### React Native (Expo) Integration
-
-Update your `frontend/VibeShift/app/(tabs)/genre-transform.tsx`:
-
-```typescript
-import * as DocumentPicker from 'expo-document-picker';
-import { Audio } from 'expo-av';
-
-const API_URL = 'http://your-api-endpoint:8000'; // or AWS endpoint
-
-export default function GenreTransformScreen() {
-  const [loading, setLoading] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<DocumentPicker.DocumentPickerAsset | null>(null);
-  const [genre, setGenre] = useState('rock');
-  const [duration, setDuration] = useState(10);
-  const [startOffset, setStartOffset] = useState(5);
-
-  const pickAudio = async () => {
-    try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: 'audio/*',
-      });
-      
-      if (result.type === 'success') {
-        setSelectedFile(result.assets[0]);
-      }
-    } catch (error) {
-      console.error('File picker error:', error);
-    }
-  };
-
-  const transformGenre = async () => {
-    if (!selectedFile) {
-      Alert.alert('Error', 'Please select an audio file first');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const formData = new FormData();
-      formData.append('audio_file', {
-        uri: selectedFile.uri,
-        type: selectedFile.mimeType || 'audio/mpeg',
-        name: selectedFile.name,
-      } as any);
-      formData.append('target_genre', genre);
-      formData.append('duration', duration.toString());
-      formData.append('start_offset', startOffset.toString());
-      formData.append('guidance', '9.5');
-      formData.append('vocal_mix', '1.5');
-      formData.append('instr_mix', '1.0');
-
-      const response = await fetch(`${API_URL}/transform`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error('Transform failed');
-      }
-
-      // Get the audio data
-      const audioBlob = await response.blob();
-      const audioUri = URL.createObjectURL(audioBlob);
-
-      // Play or save the audio
-      const { sound } = await Audio.Sound.createAsync({ uri: audioUri });
-      await sound.playAsync();
-
-    } catch (error) {
-      console.error('Transform error:', error);
-      Alert.alert('Error', 'Failed to transform audio');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <View style={styles.container}>
-      <Button title="Pick Audio File" onPress={pickAudio} />
-      
-      {selectedFile && (
-        <Text>Selected: {selectedFile.name}</Text>
-      )}
-
-      <Picker selectedValue={genre} onValueChange={setGenre}>
-        <Picker.Item label="Rock" value="rock" />
-        <Picker.Item label="Pop" value="pop" />
-        <Picker.Item label="Jazz" value="jazz" />
-        {/* Add more genres */}
-      </Picker>
-
-      <Button
-        title={loading ? "Transforming..." : "Transform Genre"}
-        onPress={transformGenre}
-        disabled={loading}
-      />
-    </View>
-  );
-}
-```
-
-### Web Integration (if you add web frontend)
-
-```typescript
-const transformAudio = async (file: File, targetGenre: string) => {
-  const formData = new FormData();
-  formData.append('audio_file', file);
-  formData.append('target_genre', targetGenre);
-  formData.append('duration', '10');
-  formData.append('start_offset', '5');
-
-  const response = await fetch('http://your-api-endpoint:8000/transform', {
-    method: 'POST',
-    body: formData,
-  });
-
-  if (!response.ok) throw new Error('Transform failed');
-
-  return await response.blob();
-};
-```
-
----
-
-## Environment Variables
-
-### Local Development
+**Poll job status:**
 ```bash
-# .env or export
-VIBESHIFT_API_URL=http://localhost:8000
-VIBESHIFT_ENV=development
+curl http://localhost:8001/transform/jobs/JOB_ID \
+  -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
-### Production (AWS)
+Status values: `pending` → `processing` → `completed` / `failed`
+
+When `completed`, the response includes:
+- `download_url` — pre-signed S3 URL for the output WAV
+- `original_url` — pre-signed S3 URL for the original uploaded file
+- `song_name`, `target_genre`, `prompt_used`
+
+**Delete a job:**
 ```bash
-# EC2 Instance / ECS Task
-VIBESHIFT_API_URL=http://your-alb-dns:8000
-VIBESHIFT_ENV=production
-```
-
-### Frontend Configuration
-Update `frontend/VibeShift/app.json` or create a config file:
-
-```json
-{
-  "apiEndpoints": {
-    "development": "http://localhost:8000",
-    "staging": "http://staging-api.example.com",
-    "production": "http://api.example.com"
-  }
-}
+curl -X DELETE http://localhost:8001/transform/jobs/JOB_ID \
+  -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
 ---
 
-## Performance Tuning
+### Stem Demixing
 
-### For Better GPU Utilization
-- Batch multiple requests if possible
-- Use appropriate timeout settings (API has 300s default)
-- Monitor GPU memory with: `nvidia-smi`
-
-### Reducing Latency
-- Shorter duration values (10-20s is optimal)
-- Pre-load model to avoid cold starts
-- Use NVIDIA T4 or better (avoid older GPUs)
-
-### Cost Optimization
-- Use spot instances for EC2
-- Scale down during low traffic
-- Cache model weights
-- Use S3 for large file storage (avoids memory overhead)
-
----
-
-## Error Handling
-
-### Common Errors
-
-**"Model not initialized"** (503)
-- API still loading, wait 30-60 seconds
-
-**"Duration must be between 0 and 60 seconds"** (400)
-- Adjust duration parameter
-
-**"Processing failed"** (500)
-- Check logs: `docker logs vibeshift-api`
-- Insufficient GPU memory (need 8GB+ for MusicGen)
-
-**GPU Out of Memory**
-- Reduce batch size
-- Reduce duration
-- Use smaller model or upgrade GPU
-
----
-
-## Monitoring & Logging
-
-### View API Logs
+**Start a demix job:**
 ```bash
-# If running in Docker
-docker logs -f vibeshift-api
-
-# Live logs with timestamps
-docker logs -f --timestamps vibeshift-api
-
-# Last 100 lines
-docker logs --tail 100 vibeshift-api
+curl -X POST http://localhost:8001/demixer/jobs \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -F "audio_file=@path/to/song.mp3"
 ```
 
-### CloudWatch Integration (AWS)
+Expected: `{"job_id": "...", "status": "pending"}`
+
+**Poll job status:**
 ```bash
-# Add to docker run command
---log-driver awslogs \
---log-opt awslogs-group=/ecs/vibeshift \
---log-opt awslogs-region=us-east-1
+curl http://localhost:8001/demixer/jobs/JOB_ID \
+  -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
-### Monitoring GPU
-```bash
-# SSH into EC2 and run
-nvidia-smi --query-gpu=name,memory.used,memory.total --format=csv,noheader -l 1
+When `completed`, the response includes:
+- `stems` — object with `vocals`, `drums`, `bass`, `other` pre-signed S3 URLs
+- `original_url` — the uploaded file URL
+- `song_name`
 
-# With process information
-nvidia-smi --query-compute-apps=pid,name,used_memory --format=csv,noheader
+**Delete a job:**
+```bash
+curl -X DELETE http://localhost:8001/demixer/jobs/JOB_ID \
+  -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
 ---
 
-## Scaling in Production
+### Library
 
-### Horizontal Scaling (Multiple Instances)
-1. Create Auto Scaling Group with EC2
-2. Place behind Application Load Balancer (ALB)
-3. ALB distributes requests across instances
-
-### Vertical Scaling (Larger GPU)
-```
-T4 (10GB) → A100 (40GB) → More concurrent requests
+**Get all jobs for current user (demix + transform combined):**
+```bash
+curl http://localhost:8001/library \
+  -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
-### Using AWS ECS
-1. Create task definition with GPU support
-2. Deploy as ECS service
-3. Configure auto-scaling policies
-4. Use Fargate for serverless GPU (when available)
+Expected: `{"items": [...]}` — each item has `id`, `type` (demix/transform), `song_name`, `status`, `created_at`, `target_genre` (transform only).
 
 ---
 
-## Next Steps
+## Testing with Postman
 
-1. **Local Testing:** Run `deploy_local.sh` to test API locally
-2. **AWS Setup:** Create EC2 instance
-3. **Container Build:** Run `deploy_ecr.sh`
-4. **Deploy to EC2:** Run `deploy_ec2.sh <ECR_IMAGE_URL>`
-5. **Integration:** Update frontend to call API endpoint
-6. **Monitoring:** Setup CloudWatch/logs
+1. Create a new Collection: **VibeShift**
+2. Set a Collection Variable: `base_url = http://localhost:8001`
+3. Set a Collection Header: `Authorization: Bearer {{token}}`
+4. Add requests for each endpoint above
+
+### Form-data fields for transform job (Postman)
+
+| Key | Type | Value |
+|-----|------|-------|
+| `audio_file` | File | select MP3/WAV |
+| `target_genre` | Text | `jazz` |
+| `duration` | Text | `10` |
+| `start_offset` | Text | `5` |
+| `guidance` | Text | `9.5` |
+| `vocal_mix` | Text | `1.5` |
+| `instr_mix` | Text | `1.0` |
+
+---
+
+## Parameter Reference
+
+| Parameter | Default | Range | Description |
+|-----------|---------|-------|-------------|
+| `duration` | 10.0 | 1–60s | Length of audio to transform |
+| `start_offset` | 5.0 | 0–song length | Start position in seconds (skip intro) |
+| `guidance` | 9.5 | 1–15 | MusicGen guidance scale (higher = closer to prompt) |
+| `vocal_mix` | 1.5 | 0–3 | Vocal volume in final mix |
+| `instr_mix` | 1.0 | 0–3 | Instrumental volume in final mix |
+
+---
+
+## Common Errors
+
+| Status | Message | Fix |
+|--------|---------|-----|
+| 401 | `Not authenticated` | Token expired — get a new one from the app |
+| 404 | `Job not found` | Wrong job ID or it belongs to another user |
+| 400 | `Duration must be 1–60 seconds` | Keep duration in valid range |
+| 500 | Check `error_message` in job response | Replicate API failure — retry or check Replicate dashboard |
+
+---
+
+## Monitoring Logs
+
+```bash
+# Watch backend logs while making requests
+uvicorn main:app --host 0.0.0.0 --port 8001 --reload
+
+# Or if running in Docker
+docker logs -f vibeshift-backend
+```
+
+You will see per-stage logs for transform jobs:
+```
+[Transform abc12345] START genre=rock duration=10s
+[Transform abc12345] Stage 1: preparing audio URL
+[Transform abc12345] Stage 2: Demucs on Replicate...
+[Transform abc12345] Stage 2 done — stems: ['vocals', 'drums', 'bass', 'other']
+[Transform abc12345] Stage 3: MusicGen (10s, guidance=9.5)...
+[Transform abc12345] Stage 4: vocal FX
+[Transform abc12345] Stage 5: tempo matching
+[Transform abc12345] Stage 6: mixing and uploading
+[Transform abc12345] DONE
+```

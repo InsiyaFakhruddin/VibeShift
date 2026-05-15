@@ -1,443 +1,339 @@
-# 🎵 VibeShift — Music Genre Transformation (FYP-2)
+# VibeShift — AI Music Transformation App
 
-## 📌 Project Overview
-
-VibeShift is an intelligent music processing system that transforms audio across different music genres using advanced deep learning techniques. The pipeline converts raw audio into Mel-spectrograms (frequency domain representations), processes them through neural networks for genre transformation, and reconstructs high-quality audio using HiFi-GAN.
-
-**Key Features:**
-- Audio to Mel-spectrogram conversion using Librosa
-- Genre-aware audio processing  
-- State-of-the-art HiFi-GAN audio reconstruction
-- End-to-end ML pipeline for music transformation
+> **Final Year Project (FYP-2)** — A full-stack AI-powered mobile app for music genre transformation and stem demixing, built with React Native (Expo) and FastAPI.
 
 ---
 
-## ⚙️ Prerequisites
+## Demo
 
-**Before you start, ensure you have:**
-- Windows/Mac/Linux OS with terminal access
-- 8GB+ RAM (GPU recommended for faster processing)
-- ~5GB free disk space (for dependencies and models)
-- Git installed (for cloning the repo)
-- NVIDIA GPU driver (optional, but recommended)
+### Demo 1 — App Flow, Design & User Settings
+> Login/signup, home screen, dark/light mode, theme customization, profile editing, password update, library view
 
----
-
-## ⚠️ IMPORTANT: Virtual Environment Setup
-
-**⚠️ DO NOT copy any existing `vibeshift-env` folder from another computer.**
-
-Each team member must create their own isolated Python environment. This ensures:
-- No conflicting package versions
-- Proper dependency isolation
-- Reproducible setup on all machines
+<!-- PLACEHOLDER: Replace with your screen recording embed -->
+**[▶ Watch Demo 1 — App Flow & Design](#)**
+`// TODO: Upload screen-recording-1.mp4 to repo or YouTube and replace link above`
 
 ---
 
-## 🧩 Step 1: Install Python 3.10
+### Demo 2 — Stem Demixing
+> Tap a previous demix card to resume it, go back, upload a new song, view separated vocals & instruments, adjust stem volumes, raise vocal pitch, play the custom mix
 
-Python version **3.10 is REQUIRED** for this project. Newer versions have compilation issues with some audio libraries.
-
-**Download Python 3.10:**
-https://www.python.org/downloads/release/python-3100/
-
-**During installation:**
-- ✅ Check "Add Python to PATH"
-- ✅ Check "Install pip"
-- Do NOT install for all users (install for current user only)
-
-**Verify installation:**
-```bash
-python --version
-```
-Should output: `Python 3.10.x`
+<!-- PLACEHOLDER: Replace with your screen recording embed -->
+**[▶ Watch Demo 2 — Full Demixing Flow](#)**
+`// TODO: Upload screen-recording-2.mp4 to repo or YouTube and replace link above`
 
 ---
 
-## 🧩 Step 2: Clone the Repository
+### Demo 3 — Genre Transformation
+> Open genre transform tab, upload a song, select a genre, set duration/offset/guidance sliders, submit, wait for processing, play the transformed output
 
-```bash
-git clone https://github.com/mehreensaghar/VibeShift.git
-cd VibeShift
-```
-
----
-
-## 🔄 Step 2.5: Update Repository (For Existing Clones)
-
-If you **already cloned the repository earlier**, pull the latest updates:
-
-```bash
-cd VibeShift
-git pull origin main
-```
-
-This will download:
-- ✅ CycleGAN training pipeline (train.py, convert.py)
-- ✅ Dataset preparation script (prepare_dataset.py)
-- ✅ Pre-trained genre transformation models (checkpoints/)
-- ✅ Training utilities and test audio samples
-
-**What you'll get:**
-```
-✓ train.py         — Train CycleGAN models for any genre pair
-✓ convert.py       — Convert audio between genres
-✓ prepare_dataset.py — Prepare GTZAN audio for training
-✓ modules/cyclegan/ — Full CycleGAN implementation
-✓ checkpoints/jazz_to_disco/ — Pre-trained jazz↔disco model
-✓ test_cases/genre_change/ — Test audio samples
-```
+<!-- PLACEHOLDER: Replace with your screen recording embed -->
+**[▶ Watch Demo 3 — Genre Transform Flow](#)**
+`// TODO: Upload screen-recording-3.mp4 to repo or YouTube and replace link above`
 
 ---
 
-## 🧩 Step 3: Create Virtual Environment
+## Features
 
-Navigate to the project folder and create an isolated Python environment:
-
-```bash
-py -3.10 -m venv vibeshift-env
-```
-
-This creates a `vibeshift-env` folder containing isolated Python packages.
-
----
-
-## 🧩 Step 4: Activate Virtual Environment
-
-The activation command depends on your operating system:
-
-### **Windows (PowerShell):**
-```bash
-.\vibeshift-env\Scripts\Activate.ps1
-```
-
-### **Windows (Command Prompt):**
-```bash
-vibeshift-env\Scripts\activate.bat
-```
-
-### **Mac/Linux:**
-```bash
-source vibeshift-env/bin/activate
-```
-
-**You should see `(vibeshift-env)` at the start of your terminal prompt.**
+| Feature | Description |
+|---|---|
+| **Genre Transform** | Upload any song, pick a genre (Blues/Jazz/Rock/etc.), get an AI-generated version powered by MusicGen |
+| **Stem Demixing** | Separate any song into vocals, drums, bass, and other stems using Demucs |
+| **Stem Mixer** | Adjust individual stem volumes, pitch-shift vocals, and play a custom mix in real time |
+| **Playback** | Seekable audio progress bar for original and transformed tracks |
+| **Library** | Browse all past transformation and demix jobs with status badges |
+| **Resume Jobs** | Tap any library card to instantly resume the result screen for that job |
+| **Authentication** | Secure login/signup via Clerk (email + OAuth) |
+| **Themes** | Light/dark mode + multiple color accent themes |
+| **Profile** | Edit name, bio, audio quality preference, export format, password |
+| **Delete Jobs** | Remove any past job and its S3 files permanently |
 
 ---
 
-## 🧩 Step 5: Upgrade pip
+## Tech Stack
 
-Ensure pip (Python package manager) is up to date:
+### Frontend
+- **React Native** (Expo SDK 51, Expo Router)
+- **TypeScript**
+- **Clerk Expo** — authentication
+- **expo-av** — audio playback
+- **expo-document-picker** — file selection
+- **expo-linear-gradient**, **expo-blur** — UI polish
 
-```bash
-python -m pip install --upgrade pip
+### Backend
+- **FastAPI** (Python 3.10+)
+- **SQLModel + SQLite** — local database
+- **Clerk JWT** — token verification with JWKS
+- **AWS S3** — audio file storage (uploads, stems, outputs)
+- **Replicate API** — Demucs (stem separation) + MusicGen melody-conditioned generation
+- **librosa, soundfile, scipy** — audio processing (vocal FX, tempo matching, mixing)
+
+---
+
+## Architecture
+
+![System Architecture](system-diagram.png)
+
+---
+
+## Project Structure
+
+```
+fyp_project/
+├── notebooks/
+│   └── mixer_notebook.ipynb # Colab FastAPI server: stem pitch/volume editing + mixing
+├── backend/
+│   ├── main.py              # FastAPI app, startup JWKS warmup
+│   ├── auth.py              # Clerk JWT verification (PyJWKClient)
+│   ├── database.py          # SQLModel schema: User, DemixJob, TransformJob
+│   ├── storage.py           # AWS S3 upload/download/delete/presign
+│   ├── replicate_client.py  # Async Replicate client: call_demucs, call_musicgen
+│   ├── migrate.py           # DB migration utility (add columns)
+│   ├── requirements.txt     # Python dependencies
+│   └── routers/
+│       ├── users.py         # GET/PATCH /users/me, profile + settings
+│       ├── demixer.py       # POST/GET/DELETE /demixer/jobs
+│       ├── transform.py     # POST/GET/DELETE /transform/jobs
+│       └── library.py       # GET /library (all jobs, unified)
+│
+└── frontend/VibeShift/
+    ├── app/
+    │   ├── (tabs)/
+    │   │   ├── index.tsx           # Home tab
+    │   │   ├── genre-transform.tsx # Genre transform tab
+    │   │   ├── demixing.tsx        # Demixing tab wrapper
+    │   │   ├── library.tsx         # Library tab
+    │   │   └── profile.tsx         # Profile tab
+    │   ├── demixing.tsx            # Full demixing screen
+    │   ├── genre-transform.tsx     # Full genre transform screen (4-phase)
+    │   ├── login.tsx               # Auth screen
+    │   ├── appearance.tsx          # Theme picker
+    │   ├── settings.tsx            # Settings hub
+    │   ├── edit-profile.tsx
+    │   ├── audio-preferences.tsx
+    │   └── change-password.tsx
+    ├── components/
+    │   ├── SimpleAudioBar.tsx   # Seekable playback bar (expo-av)
+    │   ├── StemMixer.tsx        # Per-stem volume + pitch controls
+    │   ├── StemRing.tsx         # Animated stem visualizer
+    │   ├── BottomTabBar.tsx     # Custom tab navigator
+    │   ├── SongCard.tsx         # Library/history card
+    │   ├── Icon.tsx             # Unified icon wrapper
+    │   └── ...
+    ├── context/
+    │   ├── AppearanceContext.tsx # Theme state (light/dark/accent)
+    │   └── UserContext.tsx       # Clerk user + profile sync
+    ├── utils/
+    │   └── TransformResume.ts   # Module singleton for cross-tab navigation
+    └── constants/
+        └── theme.ts
 ```
 
 ---
 
-## 🧩 Step 6: Install Python Dependencies
+## Setup
 
-Install all required packages from requirements.txt:
+### Prerequisites
+- Python 3.10+
+- Node.js 18+
+- Expo Go app on your phone (or iOS Simulator / Android Emulator)
+- [Clerk](https://clerk.com) account (free tier works)
+- [Replicate](https://replicate.com) account
+- AWS account with an S3 bucket
+
+---
+
+### Backend Setup
 
 ```bash
+cd backend
+
+# Create and activate virtual environment
+python -m venv venv
+# Windows:
+venv\Scripts\activate
+# Mac/Linux:
+source venv/bin/activate
+
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-This installs:
-- **NumPy** — Numerical computing
-- **Librosa** — Audio analysis and mel-spectrogram conversion
-- **PyTorch** — Deep learning framework (CPU version)
-- **SoundFile** — Audio file I/O
-- **Matplotlib** — Data visualization
-- **SciPy, Scikit-learn** — Scientific computing
+Create `backend/.env` (never commit this file):
+```env
+CLERK_ISSUER=https://your-clerk-domain.clerk.accounts.dev
+CLERK_JWKS_URL=https://your-clerk-domain.clerk.accounts.dev/.well-known/jwks.json
 
-**Expected time:** 2-5 minutes depending on internet speed.
+AWS_ACCESS_KEY_ID=your-aws-access-key
+AWS_SECRET_ACCESS_KEY=your-aws-secret-key
+AWS_REGION=us-east-1
+S3_BUCKET_NAME=your-bucket-name
+
+REPLICATE_API_TOKEN=your-replicate-token
+```
+
+Run the server:
+```bash
+uvicorn main:app --host 0.0.0.0 --port 8001 --reload
+```
+
+The API will be available at `http://localhost:8001`. Interactive docs at `http://localhost:8001/docs`.
 
 ---
 
-## 🧩 Step 7: (Recommended) Install PyTorch with GPU Support
-
-If you have an **NVIDIA GPU**, install the GPU-accelerated version for much faster processing:
+### Frontend Setup
 
 ```bash
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+cd frontend/VibeShift
+npm install
 ```
 
-**Check if GPU is available:**
+Create `frontend/VibeShift/.env` (never commit this file):
+```env
+EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_your-clerk-publishable-key
+EXPO_PUBLIC_API_URL=http://YOUR_LOCAL_IP:8001
+```
+
+> **Note:** Use your machine's local network IP (e.g. `192.168.1.x`), not `localhost`, so your phone can reach the backend over WiFi.
+
+Start the app:
 ```bash
-python -c "import torch; print('GPU Available:', torch.cuda.is_available())"
+npx expo start
 ```
 
-Output should be: `GPU Available: True`
-
-If GPU not detected, that's okay — the CPU version will still work (just slower).
-
-**Note:** Mac users with Apple Silicon should skip this and use the default CPU installation.
+Scan the QR code with **Expo Go** (Android) or the Camera app (iOS).
 
 ---
 
-## 🧩 Step 8: Download and Setup HiFi-GAN
+## API Reference
 
-HiFi-GAN is a pre-trained neural network that converts Mel-spectrograms back into high-quality audio.
+All endpoints require `Authorization: Bearer <clerk_token>` except where noted.
 
-### **Step 8.1: Download the Model**
-
-Download the pre-trained model from:
-https://github.com/jik876/hifi-gan/releases/tag/v1
-
-Look for **"UNIVERSAL_V1"** folder and download:
-- `g_02500000` (this is the trained generator model)
-
-Alternative download (Google Drive):
-https://drive.google.com/drive/folders/1-eEYTB5Av9jNql0WGBlRoi-WH2J7bp5Y?usp=sharing
-
-### **Step 8.2: Place the Model**
-
-1. Extract/copy the downloaded file
-2. Navigate to: `modules/hifi_gan/`
-3. Place the generator file here and **rename it to `generator_v1`** (without extension)
-
-**Your folder should look like:**
-```
-modules/hifi_gan/
-  ├── config_v1.json         (already included ✓)
-  ├── generator_v1            (model you just downloaded)
-  ├── models.py               (already included ✓)
-  ├── utils.py                (already included ✓)
-  └── (other hifi_gan files)
-```
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/auth/sync` | Sync Clerk user to local DB on first login |
+| GET | `/users/me` | Get current user profile |
+| PATCH | `/users/me` | Update name, bio, audio quality, export format |
+| GET | `/transform/genres` | List all 10 available genre presets |
+| POST | `/transform/jobs` | Upload audio and start genre transformation |
+| GET | `/transform/jobs/{id}` | Poll job status + get download URL when done |
+| DELETE | `/transform/jobs/{id}` | Delete job and all its S3 files |
+| POST | `/demixer/jobs` | Upload audio and start stem demixing |
+| GET | `/demixer/jobs/{id}` | Poll demix status + get stem URLs |
+| DELETE | `/demixer/jobs/{id}` | Delete demix job and all its S3 files |
+| GET | `/library` | Get all jobs (demix + transform) for current user |
 
 ---
 
-## ▶️ Running the Pipeline
+## Genre Transform Pipeline
 
-### **Option 1: Quick Test (Requires HiFi-GAN model)**
-
-Once setup is complete, test the basic audio pipeline:
-
-```bash
-python test.py
+```
+1. Upload audio → stored in S3
+        ↓
+2. Replicate Demucs (htdemucs)
+   → vocals stem + drums + bass + other
+        ↓
+3. Mix non-vocal stems → instrumental track
+        ↓
+4. Replicate MusicGen (melody-conditioned)
+   → genre-converted instrumental
+        ↓
+5. Vocal FX (genre-specific: EQ, distortion, reverb, delay)
+        ↓
+6. Tempo-match vocals to new instrumental (librosa)
+        ↓
+7. Final mix + peak normalization → upload to S3
+        ↓
+8. Job status → "completed", download URL returned
 ```
 
-**What happens:**
-1. Loads an audio file (`test_cases/full song.mp3`)
-2. Converts to Mel-spectrogram
-3. Loads HiFi-GAN model
-4. Reconstructs audio from Mel-spectrogram
-5. Saves output as `reconstructed.wav`
+### Supported Genres
+`blues` · `classical` · `country` · `disco` · `hiphop` · `jazz` · `metal` · `pop` · `reggae` · `rock`
 
-**Expected output:**
-```
-HiFi-GAN generator loaded successfully.
-Audio saved to reconstructed.wav
-```
 
 ---
 
-### **Option 2: Genre Transformation (New!)**
+## Stem Mixer — Colab API
 
-Transform music between genres using CycleGAN. Includes pre-trained **jazz ↔ disco** model.
+The **Stem Mixer** feature (adjusting stem volumes, pitch-shifting vocals, muting stems, and playing a custom mix) requires a separate processing server because pitch shifting and audio mixing are compute-heavy operations not suited for the main FastAPI backend.
 
-**Step 1: Convert GTZAN audio to mel spectrograms**
-```bash
-python prepare_dataset.py
-```
-- Converts all `.wav` files in `data/genres_original/` to mel spectrograms
-- Saves to `data/mels/` (takes 30-45 minutes for full GTZAN)
-- **Only needed if retraining models**
+This is handled by **[notebooks/mixer_notebook.ipynb](notebooks/mixer_notebook.ipynb)** — a FastAPI server that runs inside Google Colab and is exposed publicly via ngrok.
 
-**Step 2: Train a CycleGAN model** (optional)
-```bash
-python train.py
-```
-- Trains jazz ↔ disco genre transformation
-- Uses pre-configured 300 epochs
-- Automatically detects GPU (much faster!)
-- Saves checkpoints every 25 epochs
-- **Takes 3-4 hours on GPU or 12+ hours on CPU**
-
-**Step 3: Convert audio between genres**
-```bash
-python convert.py
-```
-- Takes a jazz song and transforms it to disco style
-- Uses `checkpoints/jazz_to_disco/epoch_250.pt` (best checkpoint)
-- Outputs to `output_jazz_to_disco.wav`
-- **Takes 1-2 minutes**
-
-**To use a different genre pair:**
-Edit `train.py` and `convert.py`:
-```python
-GENRE_A = 'jazz'       # Change this
-GENRE_B = 'classical'  # Change this
-```
-
-Supported genres: blues, classical, country, disco, hiphop, jazz, metal, pop, reggae, rock
-
----
-
-## 📁 Project Structure
+### How It Works
 
 ```
-VibeShift/
-├── modules/
-│   ├── audio_to_mel.py          # Converts audio → Mel-spectrogram
-│   ├── mel_to_audio.py          # Converts Mel → audio (uses HiFi-GAN)
-│   ├── hifi_gan/                # HiFi-GAN model directory
-│   │   ├── models.py
-│   │   ├── utils.py
-│   │   ├── config_v1.json
-│   │   ├── generator_v1         # (Download & place here)
-│   │   └── ...
-│   └── cyclegan/                # CycleGAN genre transformation
-│       ├── generator.py         # Generator network
-│       ├── discriminator.py     # PatchGAN discriminator
-│       ├── dataset.py           # GTZAN dataset loader
-│       ├── buffer.py            # Replay buffer for training
-│       ├── cyclegan.py          # Full training pipeline
-│       └── __init__.py
-├── data/
-│   └── gtzan/
-│       ├── genres_original/     # Raw GTZAN audio files (100 per genre)
-│       │   ├── jazz/*.wav
-│       │   ├── classical/*.wav
-│       │   └── ...
-│       └── mels/                # Generated mel spectrograms (created by prepare_dataset.py)
-│           ├── jazz/*.npy
-│           └── ...
-├── checkpoints/
-│   └── jazz_to_disco/           # Pre-trained genre transformation models
-│       ├── epoch_210.pt
-│       ├── epoch_220.pt
-│       ├── epoch_250.pt         # ⭐ Best checkpoint (recommended)
-│       └── ...
-├── test_cases/
-│   ├── stemmer/                 # Audio stemming test files
-│   └── genre_change/            # Genre conversion test samples
-├── output_songs/                # Generated output directory
-├── requirements.txt             # Python dependencies
-├── test.py                      # Test script (run for basic pipeline)
-├── prepare_dataset.py           # Convert GTZAN to mel spectrograms
-├── train.py                     # Train CycleGAN models
-├── convert.py                   # Convert audio between genres ⭐
-├── app.py                       # Main application
-└── README.md                    # This file
+User edits stems in the app (volume, pitch, mute toggles)
+        ↓
+App sends stem S3 URLs + per-stem settings to Colab API
+        ↓
+Colab downloads each stem, applies edits:
+  - Pitch shift   (librosa pitch_shift, up to ±12 semitones)
+  - Timbre adjust (HPSS harmonic/percussive separation)
+  - Volume scale  (linear gain per stem)
+  - Mute          (skipped entirely)
+        ↓
+All unmuted stems summed → peak normalized → WAV returned
+        ↓
+App plays the mixed result via SimpleAudioBar
 ```
 
----
+### Colab API Endpoints
 
-## 🔧 Troubleshooting
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/health` | Check the server is alive |
+| POST | `/process-and-mix` | Main endpoint — process + mix all stems in one call |
+| POST | `/process-stem` | Process a single stem (pitch, timbre, volume) |
+| POST | `/mix-stems` | Mix a set of already-processed stem URLs |
 
-### **"ModuleNotFoundError: No module named..."**
-- Make sure virtual environment is **activated** (check `(vibeshift-env)` in terminal)
-- Run: `pip install -r requirements.txt` again
-- Download HiFi-GAN model from the link above
-- Ensure it's placed in `modules/hifi_gan/`
-- Rename it to exactly `generator_v1`
+### `/process-and-mix` Payload
 
-### **"DLL load failed" or "ImportError" on Windows**
-- Make sure you're using **Python 3.10** (not 3.11 or 3.12)
-- Reinstall dependencies: `pip install -r requirements.txt --force-reinstall`
+The app sends a JSON array of stem configs:
 
-### **GPU not detected (CUDA)**
-- Check NVIDIA driver: https://www.nvidia.com/Download/driverDetails.aspx
-- Reinstall PyTorch with correct CUDA version
-- CPU-only mode still works fine (just slower)
-
-### **Audio file not found**
-- Check that `test_cases/full song.mp3` exists
-- You can replace it with your own audio files in `.mp3` or `.wav` format
-
----
-
-## 📝 Working with Audio Files
-
-To process your own audio files:
-
-**Option 1: Update test.py**
-```python
-mel = audio_to_mel("path/to/your/audio.mp3")
+```json
+[
+  { "url": "https://s3.../vocals.wav",  "pitch": 2,  "timbre": 1.0, "volume": 1.2, "muted": false },
+  { "url": "https://s3.../drums.wav",   "pitch": 0,  "timbre": 1.0, "volume": 1.0, "muted": false },
+  { "url": "https://s3.../bass.wav",    "pitch": 0,  "timbre": 1.0, "volume": 0.8, "muted": false },
+  { "url": "https://s3.../other.wav",   "pitch": 0,  "timbre": 1.0, "volume": 1.0, "muted": true  }
+]
 ```
 
-**Option 2: Use any audio format**
-Supported formats: `.mp3`, `.wav`, `.flac`, `.ogg`
+Returns a mixed `.wav` file ready for playback.
 
-**File size recommendation:** < 30MB (processing time increases with file size)
+### Running the Colab Server
 
----
+1. Open `notebooks/mixer_notebook.ipynb` in [Google Colab](https://colab.research.google.com)
+2. Set your ngrok auth token in the notebook (cell 6)
+3. Run all cells — the server starts on port `8001` and ngrok prints a public URL
+4. Copy that URL into `backend/.env` as `COLAB_API_URL=https://your-ngrok-url.ngrok-free.dev`
+5. Restart the FastAPI backend — the demixer router will forward mix requests to Colab
 
-## 💻 System Requirements Summary
-
-| Feature | Minimum | Recommended |
-|---------|---------|-------------|
-| Python | 3.10 | 3.10 |
-| RAM | 4GB | 8GB+ |
-| Storage | 3GB | 5GB+ |
-| GPU | - | NVIDIA (any with CUDA support) |
-| OS | Windows/Mac/Linux | Any |
+> The Colab notebook must stay running while using the Stem Mixer. Free Colab sessions time out after ~12 hours of inactivity.
 
 ---
 
-## ⚠️ Important Notes for All Team Members
+## Deployment
 
-1. **Python Version:** Always use Python 3.10. Do NOT use 3.11 or newer.
-2. **Virtual Environment:** Each person creates their own (don't share the `vibeshift-env` folder).
-3. **Activate Before Running:** Always run `.\vibeshift-env\Scripts\activate` before testing.
-4. **Git Commits:** Never commit the `vibeshift-env` folder or large model files.
-5. **Slow First Run:** The first time you run the pipeline, it will be slow as models are loaded. Subsequent runs are faster.
+See [AWS_DEPLOYMENT_GUIDE.md](AWS_DEPLOYMENT_GUIDE.md) for full deployment steps.
 
----
-
-## 🚀 Next Steps (For Development)
-
-After setup is complete:
-
-1. **Explore the codebase** in `modules/` to understand the audio pipeline
-2. **Implement CycleGAN** for genre transfer logic
-3. **Extend test.py** with genre transformation features
-4. **Create unit tests** for each module
-5. **Build the UI** in `app.py` for user-friendly interaction
+**Architecture summary:**
+- **Backend:** FastAPI on any VPS / EC2 (no GPU required — all AI runs on Replicate)
+- **Storage:** AWS S3 for all audio files (uploads, stems, outputs)
+- **Auth:** Clerk (fully hosted)
+- **AI inference:** Replicate API (pay-per-run, serverless)
 
 ---
 
-## 📊 Pipeline Diagram
+## Team
 
-```
-Raw Audio (.mp3/.wav)
-    ↓
-[audio_to_mel.py]
-    ↓
-Mel-Spectrogram (80 frequency bins)
-    ↓
-[CycleGAN / Transformation Logic]
-    ↓
-Transformed Mel-Spectrogram
-    ↓
-[mel_to_audio.py + HiFi-GAN]
-    ↓
-Reconstructed Audio (.wav)
-```
+| Name | Role |
+|---|---|
+| Insiya Fakhruddin | Full-stack development (FYP-2) |
+| Mehreen Saghar | Collaborator |
 
 ---
 
-## 📞 Help & Support
-
-If you encounter issues:
-
-1. **Check troubleshooting section above** ⬆️
-2. **Verify Python version:** `python --version`
-3. **Check virtual environment:** Look for `(vibeshift-env)` in terminal
-4. **Ask team members** who have successfully set up
-5. **Create an issue on GitHub** with full error message and setup details
-
----
-
-## 📄 License
-
-This project is part of the FYP-2 program. See LICENSE file for details.
-
----
-
-**Last Updated:** April 2026  
-**Python Version:** 3.10  
-**Status:** ✅ Working & Ready to Use
+**Status:** Complete & Working  
+**Last Updated:** May 2026  
+**Python:** 3.10+ · **Expo SDK:** 51 · **FastAPI:** 0.110+

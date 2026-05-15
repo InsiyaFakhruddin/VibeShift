@@ -14,12 +14,13 @@ export default function BottomTabBar(props: BottomTabBarProps) {
   const hiddenStrings = 'index home explore demixing library profile search music folder user';
 
   const iconMap: Record<string, string> = {
-    index:    'home',
-    explore:  'sparkles',
-    demixing: 'music-2',
-    library:  'library',
-    profile:  'user',
-    default:  'user',
+    index:             'home',
+    explore:           'sparkles',
+    demixing:          'music-2',
+    'genre-transform': 'sparkles',
+    library:           'library',
+    profile:           'user',
+    default:           'user',
   };
 
   return (

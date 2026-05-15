@@ -6,7 +6,7 @@ import { useProfile } from '@/context/UserContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Animated, Easing, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? '';
@@ -52,6 +52,26 @@ export default function Library() {
   const [selectedTab, setSelectedTab] = useState('all');
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const spinValue = useRef(new Animated.Value(0)).current;
+  const spinAnim  = useRef<Animated.CompositeAnimation | null>(null);
+
+  const startSpin = () => {
+    spinValue.setValue(0);
+    spinAnim.current = Animated.loop(
+      Animated.timing(spinValue, { toValue: 1, duration: 700, useNativeDriver: true, easing: Easing.linear })
+    );
+    spinAnim.current.start();
+  };
+
+  const stopSpin = () => {
+    spinAnim.current?.stop();
+    spinValue.setValue(0);
+  };
+
+  const spinDeg = spinValue.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
 
   // Use a ref so the refresh button and useEffect always call the latest version
   // of fetchLibrary without stale-closure issues from useCallback's dep array.
@@ -59,10 +79,12 @@ export default function Library() {
 
   const fetchLibrary = async () => {
     setLoading(true);
+    setFetchError(null);
     try {
       let token = await getToken();
       if (!token) token = await getToken({ skipCache: true } as any);
-      if (!token) { setLoading(false); return; }
+      if (!token) { setLoading(false); setFetchError('Not authenticated — try signing out and back in.'); return; }
+      if (!API_URL) { setLoading(false); setFetchError('API URL not configured.'); return; }
       const res = await fetch(`${API_URL}/library`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -70,15 +92,51 @@ export default function Library() {
         const data = await res.json();
         setItems(data.items ?? []);
       } else {
+        setFetchError(`Server returned ${res.status} — tap refresh to retry.`);
         console.warn('[Library] fetch failed', res.status);
       }
-    } catch (e) {
-      console.warn('[Library] fetch error', e);
+    } catch (e: any) {
+      const msg: string = e?.message ?? String(e);
+      console.warn('[Library] fetch error:', msg);
+      setFetchError(msg);
     } finally {
       setLoading(false);
     }
   };
   fetchLibraryRef.current = fetchLibrary;
+
+  const handleRefresh = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    startSpin();
+    try {
+      let token = await getToken();
+      if (!token) token = await getToken({ skipCache: true } as any);
+      if (!token) {
+        Alert.alert('Refresh failed', 'Not authenticated — try signing out and back in.');
+        return;
+      }
+      if (!API_URL) {
+        Alert.alert('Refresh failed', 'API URL not configured.');
+        return;
+      }
+      const res = await fetch(`${API_URL}/library`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setItems(data.items ?? []);
+        setFetchError(null);
+      } else {
+        Alert.alert('Refresh failed', `Server returned ${res.status}. Your current list is unchanged.`);
+      }
+    } catch (e: any) {
+      Alert.alert('Refresh failed', e?.message ?? String(e));
+    } finally {
+      setRefreshing(false);
+      stopSpin();
+    }
+  };
 
   // Wait for UserContext sync to complete (profile.id is set) before fetching.
   // Fetching earlier races POST /auth/sync and gets a 404 from get_current_user.
@@ -134,16 +192,16 @@ export default function Library() {
               {/* Header row */}
               <View style={styles.headerTopRow}>
                 <View style={styles.logoContainer}>
-                  <View style={[styles.logoBall, { backgroundColor: t.accent, shadowColor: t.accent }]}>
-                    <Icon name="disc-3" size={22} color="#fff" />
-                  </View>
+                  <Icon name="vibeshift-logo" size={44} color={t.text} />
                   <View style={styles.headerTextGroup}>
                     <Text style={[styles.vibeShiftText, { color: t.text }]}>VibeShift</Text>
                     <Text style={[styles.greetingText, { color: t.subtitle }]}>Hi {profile?.name || 'there'}</Text>
                   </View>
                 </View>
-                <Pressable onPress={fetchLibrary}>
-                  <Icon name="refresh-cw" size={20} color={t.subtitle} />
+                <Pressable onPress={handleRefresh} disabled={loading || refreshing} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                  <Animated.View style={{ transform: [{ rotate: spinDeg }] }}>
+                    <Icon name="refresh-cw" size={20} color={refreshing ? t.accent : t.subtitle} />
+                  </Animated.View>
                 </Pressable>
               </View>
 
@@ -186,6 +244,15 @@ export default function Library() {
               {/* Content */}
               {loading ? (
                 <ActivityIndicator color={t.accent} style={{ marginTop: 40 }} />
+              ) : fetchError ? (
+                <View style={styles.emptyState}>
+                  <Icon name="refresh-cw" size={40} color="#ef4444" />
+                  <Text style={[styles.emptyText, { color: '#ef4444' }]}>Could not load library</Text>
+                  <Text style={[styles.emptySubtext, { color: t.subtitle }]}>{fetchError}</Text>
+                  <Pressable onPress={fetchLibrary} style={{ marginTop: 12, paddingVertical: 8, paddingHorizontal: 20, borderRadius: 10, borderWidth: 1, borderColor: t.accent }}>
+                    <Text style={{ color: t.accent, fontWeight: '600', fontSize: 13 }}>Retry</Text>
+                  </Pressable>
+                </View>
               ) : filtered.length === 0 ? (
                 <View style={styles.emptyState}>
                   <Icon name="library" size={48} color={t.subtitle} />
@@ -208,7 +275,10 @@ export default function Library() {
                               borderColor: pressed ? cardAccentRing : t.border,
                             },
                           ]}
-                          onPress={() => isDemix ? router.push('/demixing') : router.push('/genre-transform')}
+                          onPress={() => isDemix
+                            ? router.push('/demixing')
+                            : router.push({ pathname: '/(tabs)/genre-transform', params: { resumeJobId: item.id } } as any)
+                          }
                         >
                           {/* Left accent stripe */}
                           <View style={[styles.cardStripe, { backgroundColor: cardAccent }]} />

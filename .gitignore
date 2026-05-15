@@ -46,3 +46,18 @@ test_cases/
 # Logs
 logs/
 *.log
+
+# Database — local dev only, never commit
+*.db
+backend/vibeshift.db
+
+# Claude Code internal files
+CLAUDE.md
+.claude/
+
+# Expo generated/cache
+frontend/VibeShift/.expo/
+frontend/VibeShift/expo-env.d.ts
+
+# Node modules
+frontend/VibeShift/node_modules/

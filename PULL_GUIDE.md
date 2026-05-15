@@ -1,24 +1,21 @@
-# Pulling Updates to VibeShift
+# Pulling Updates — VibeShift
 
-This guide explains how to pull the latest changes if you've already cloned the VibeShift repository.
+This guide covers how to pull the latest changes from the VibeShift repository.
 
-## Quick Start (No Local Changes)
+---
 
-If you haven't made any changes to your local copy, simply run:
+## Quick Pull (No Local Changes)
 
 ```bash
+cd fyp_project
 git pull origin main
 ```
-
-This downloads and applies all updates from the remote repository.
 
 ---
 
 ## If You Have Local Changes
 
-### Option 1: Keep Your Changes (Recommended during active development)
-
-If you've made local modifications and want to keep them while updating the code:
+### Option 1: Save and restore your changes (recommended)
 
 ```bash
 git stash
@@ -26,141 +23,91 @@ git pull origin main
 git stash pop
 ```
 
-**What this does:**
-- `git stash` - Saves your local changes temporarily
-- `git pull origin main` - Downloads the latest updates
-- `git stash pop` - Re-applies your saved changes on top of the updates
+- `git stash` — saves your local changes temporarily
+- `git pull` — downloads the latest from remote
+- `git stash pop` — re-applies your saved changes on top
 
-**⚠️ If conflicts occur:** Git will mark conflicting sections in affected files. Open those files, manually resolve the conflicts (choose which version to keep), then run:
+If conflicts occur, Git will mark them in the files. Resolve manually then:
 ```bash
 git add .
 git commit -m "Resolved merge conflicts"
 ```
 
-### Option 2: Discard Your Changes (Start Fresh)
-
-If you want to reset to the latest remote version and discard all local changes:
+### Option 2: Discard local changes (start fresh)
 
 ```bash
 git reset --hard origin/main
 ```
 
-**⚠️ Warning:** This permanently deletes any uncommitted local changes. Only use if you're sure you don't need them.
+> **Warning:** This permanently deletes any uncommitted local changes.
 
 ---
 
-## Step-by-Step Guide for First-Time Pullers
+## After Pulling
 
-### 1. Check Your Current Status
-```bash
-git status
-```
-You should see which files have been modified locally (if any).
+### Backend — install any new dependencies
 
-### 2. Pull the Updates
 ```bash
-git pull origin main
+cd backend
+venv\Scripts\activate        # Windows
+# source venv/bin/activate   # Mac/Linux
+pip install -r requirements.txt
 ```
 
-### 3. Verify the Pull
+Restart the backend:
+```bash
+# If running manually:
+uvicorn main:app --host 0.0.0.0 --port 8001 --reload
+
+# If running as systemd service:
+sudo systemctl restart vibeshift
+```
+
+### Frontend — install any new packages
+
+```bash
+cd frontend/VibeShift
+npm install
+npx expo start
+```
+
+---
+
+## Verify the Pull
+
 ```bash
 git log --oneline -5
 ```
-You should see the latest commits from the remote repository.
 
-### 4. Verify All Files Are Present
-```bash
-ls -la
-```
-You should see:
-- ✅ `train.py` - Training script
-- ✅ `convert.py` - Inference/conversion script
-- ✅ `prepare_dataset.py` - Dataset preparation script
-- ✅ `modules/cyclegan/` - CycleGAN implementation
-- ✅ `checkpoints/` - Pre-trained models
-- ✅ `README.md` - Updated documentation
+You should see the latest commits at the top.
 
 ---
 
-## What's New in Recent Updates?
+## Common Issues
 
-### Updated Files:
-- **README.md** - Added pull instructions and genre transformation pipeline documentation
-- **train.py** - CycleGAN training with GPU support
-- **convert.py** - Full pipeline for audio genre conversion
-- **modules/cyclegan/** - Complete CycleGAN architecture
-
-### New Folders:
-- **checkpoints/** - Pre-trained jazz↔disco models (ready to use!)
-- **test_cases/** - Sample audio files for testing
-
----
-
-## Common Issues & Solutions
-
-### Issue: "fatal: Not a git repository"
-**Solution:** Make sure you're in the VibeShift directory:
+**`fatal: Not a git repository`**
+Make sure you're in the project directory:
 ```bash
-cd /path/to/VibeShift
+cd path/to/fyp_project
 git status
 ```
 
-### Issue: "Permission denied" or "Access to repository denied"
-**Solution:** Ensure you have proper authentication. For HTTPS:
+**`Permission denied` / `Access denied`**
+Ensure you're a collaborator on the repo and authenticated:
 ```bash
 git config user.name "Your Name"
 git config user.email "your.email@example.com"
 ```
 
-For SSH, ensure your SSH key is added to GitHub.
-
-### Issue: Merge conflicts after pull
-**Solution:** Use the stash approach (see Option 1 above) or manually edit conflicting files and resolve them.
-
-### Issue: Behind by N commits, ahead by M commits
-**Solution:** You have local changes. Use the stash approach to clean up:
-```bash
-git stash
-git pull origin main
-git stash pop  # or git stash drop if you don't want your changes
-```
+**`Merge conflict` after pull**
+Use Option 1 (stash) above, or open the conflicting files, manually resolve the `<<<<<<` markers, then commit.
 
 ---
 
-## Next Steps After Pulling
+## Project Structure Reminder
 
-### 1. Verify the Python Environment
-```bash
-conda activate vibeshift-env
-# or
-source vibeshift-env/bin/activate  # On Linux/Mac
-```
+After pulling, ensure your local `.env` files are present (they are gitignored and never committed):
+- `backend/.env` — Clerk, AWS S3, Replicate credentials
+- `frontend/VibeShift/.env` — Clerk publishable key, API URL
 
-### 2. Install/Update Dependencies (if any changed)
-```bash
-pip install -r requirements.txt
-```
-
-### 3. Test the Conversion Pipeline
-```bash
-python convert.py
-```
-
-This will use the pre-trained jazz→disco model to transform a test audio file. You should see `output_jazz_to_disco.wav` created.
-
-### 4. Train Your Own Model (Optional)
-```bash
-python train.py
-```
-
-This trains a new CycleGAN model for jazz↔disco genre transformation (requires GTZAN dataset).
-
----
-
-## Need Help?
-
-- Check the main **README.md** for setup and usage documentation
-- Review **modules/cyclegan/** for architecture details
-- See **test_cases/** for sample audio files
-
-Happy training! 🎵
+See [README.md](README.md) for the full env variable reference.

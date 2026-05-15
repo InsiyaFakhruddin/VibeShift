@@ -14,6 +14,7 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  Image,
   Platform,
   Pressable,
   ScrollView,
@@ -441,9 +442,7 @@ export default function GenreTransform() {
               {/* Header */}
               <View style={styles.headerTopRow}>
                 <View style={styles.logoContainer}>
-                  <View style={[styles.logoBall, { backgroundColor: t.accent, shadowColor: t.accent }]}>
-                    <Icon name="disc-3" size={22} color="#fff" />
-                  </View>
+                  <Icon name="vibeshift-logo" size={44} color={t.accent} />
                   <View>
                     <Text style={[styles.vibeShiftText, { color: t.accent }]}>VibeShift</Text>
                     <Text style={[styles.greetingText, { color: t.subtitle }]}>Hi {profile?.name || 'there'}</Text>

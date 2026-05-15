@@ -20,6 +20,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from database import create_db_and_tables
+from auth import warmup_jwks
 from routers.users import auth_router, users_router
 from routers.demixer import router as demixer_router
 from routers.transform import router as transform_router
@@ -54,6 +55,8 @@ def on_startup():
         print("✅ Replicate API token loaded")
     else:
         print("⚠️  REPLICATE_API_TOKEN not set — add it to backend/.env")
+    warmup_jwks()
+    print("✅ JWKS keys pre-fetched")
 
 
 @app.get("/health", tags=["system"])

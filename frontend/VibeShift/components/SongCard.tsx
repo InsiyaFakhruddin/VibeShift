@@ -9,6 +9,7 @@ type Props = {
   title: string;
   duration?: string;
   editedDate?: string;
+  iconName?: string;
   onClick?: () => void;
   onDelete?: () => void;
 };
@@ -48,7 +49,7 @@ function EqualizerBar({ delay, maxHeight, color, enabled }: { delay: number; max
   );
 }
 
-export function SongCard({ title, duration, editedDate, onClick, onDelete }: Props) {
+export function SongCard({ title, duration, editedDate, iconName = 'music-2', onClick, onDelete }: Props) {
   const { accentColor, accentAltColor, animationsEnabled } = useAppearance();
   const t = useAppTheme();
   const scale = React.useRef(new Animated.Value(1)).current;
@@ -83,7 +84,7 @@ export function SongCard({ title, duration, editedDate, onClick, onDelete }: Pro
             ))}
           </View>
           <View style={styles.iconOverlay}>
-            <Icon name="music-2" size={20} color={accentColor} />
+            <Icon name={iconName as any} size={20} color={accentColor} />
           </View>
         </View>
       </Animated.View>

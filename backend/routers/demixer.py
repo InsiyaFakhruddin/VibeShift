@@ -6,10 +6,13 @@ from datetime import datetime
 import sys
 import io
 import os
+import json
 import numpy as np
 import soundfile as sf
 import httpx
 from pathlib import Path
+
+COLAB_API_URL = os.getenv("COLAB_API_URL", "").rstrip("/")
 
 # editor.py lives in backend/modules/demixer/ — add that directory to path once at import time
 sys.path.insert(0, str(Path(__file__).parent.parent / "modules" / "demixer"))
@@ -79,7 +82,7 @@ async def _run_separation(job_id: str, s3_key: str, filename: str, export_format
                 session.commit()
 
 
-# ── Background task: local mix via editor.py + numpy ─────────────────────────
+# ── Background task: mix via Colab GPU (if COLAB_API_URL set) or local librosa ─
 
 async def _run_mix(job_id: str, mix_id: str, export_format: str = "wav"):
     with Session(engine) as session:
@@ -96,45 +99,71 @@ async def _run_mix(job_id: str, mix_id: str, export_format: str = "wav"):
         ]
 
     try:
-        arrays = []
-        sr_final = 44100
+        mix_wav_bytes: bytes
 
-        for rec in stem_records:
-            if rec["is_muted"]:
-                continue
+        if COLAB_API_URL:
+            # ── Colab GPU path ─────────────────────────────────────────
+            # Generate presigned S3 URLs so Colab can download stems directly
+            stems_payload = [
+                {
+                    "url":    storage.get_presigned_url(rec["s3_key"]),
+                    "pitch":  float(rec["pitch_shift"]),
+                    "timbre": float(rec["timbre_strength"]),
+                    "volume": float(rec["volume"]),
+                    "muted":  bool(rec["is_muted"]),
+                }
+                for rec in stem_records
+            ]
+            async with httpx.AsyncClient(timeout=600.0) as client:
+                resp = await client.post(
+                    f"{COLAB_API_URL}/process-and-mix",
+                    data={"stems_json": json.dumps(stems_payload)},
+                )
+                resp.raise_for_status()
+                mix_wav_bytes = resp.content
 
-            data = storage.download_bytes(rec["s3_key"])
-            y, sr = load_audio(io.BytesIO(data))
-            sr_final = sr
+        else:
+            # ── Local librosa fallback ─────────────────────────────────
+            arrays = []
+            sr_final = 44100
 
-            if rec["pitch_shift"] != 0.0:
-                y = pitch_shift_audio(y, sr, rec["pitch_shift"])
-            if rec["timbre_strength"] != 1.0:
-                y = change_timbre_simple(y, rec["timbre_strength"])
+            for rec in stem_records:
+                if rec["is_muted"]:
+                    continue
 
-            # Collapse to mono for mixing
-            if y.ndim == 2:
-                y = y.mean(axis=1)
+                data = storage.download_bytes(rec["s3_key"])
+                y, sr = load_audio(io.BytesIO(data))
+                sr_final = sr
 
-            arrays.append(y.astype(np.float32) * float(rec["volume"]))
+                if rec["pitch_shift"] != 0.0:
+                    y = pitch_shift_audio(y, sr, rec["pitch_shift"])
+                if rec["timbre_strength"] != 1.0:
+                    y = change_timbre_simple(y, rec["timbre_strength"])
 
-        if not arrays:
-            raise RuntimeError("No unmuted stems to mix")
+                if y.ndim == 2:
+                    y = y.mean(axis=1)
 
-        max_len = max(len(a) for a in arrays)
-        mix = np.zeros(max_len, dtype=np.float32)
-        for a in arrays:
-            mix[: len(a)] += a
+                arrays.append(y.astype(np.float32) * float(rec["volume"]))
 
-        peak = float(np.max(np.abs(mix)))
-        if peak > 0:
-            mix = mix / peak * 0.98
+            if not arrays:
+                raise RuntimeError("No unmuted stems to mix")
 
-        buf = io.BytesIO()
-        sf.write(buf, mix, sr_final, format="WAV")
+            max_len = max(len(a) for a in arrays)
+            mix = np.zeros(max_len, dtype=np.float32)
+            for a in arrays:
+                mix[: len(a)] += a
 
+            peak = float(np.max(np.abs(mix)))
+            if peak > 0:
+                mix = mix / peak * 0.98
+
+            buf = io.BytesIO()
+            sf.write(buf, mix, sr_final, format="WAV")
+            mix_wav_bytes = buf.getvalue()
+
+        # ── Common: upload result to S3 and update DB ──────────────────
         mix_s3_key = f"mixes/{job_id}/mix_{mix_id}.wav"
-        storage.upload_bytes(buf.getvalue(), mix_s3_key, "audio/wav")
+        storage.upload_bytes(mix_wav_bytes, mix_s3_key, "audio/wav")
 
         with Session(engine) as session:
             record = session.get(DemixMix, mix_id)

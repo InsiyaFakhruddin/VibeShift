@@ -334,14 +334,19 @@ def get_transform_job(
     if job.status == "completed" and job.output_s3_key:
         download_url = storage.get_presigned_url(job.output_s3_key)
 
+    original_url = storage.get_presigned_url(job.original_s3_key) if job.original_s3_key else None
+    song_name    = job.original_file_name.rsplit(".", 1)[0]
+
     return {
         "id":            job.id,
         "status":        job.status,
+        "song_name":     song_name,
         "target_genre":  job.target_genre,
         "prompt_used":   job.prompt_used,
         "error_message": job.error_message,
         "created_at":    job.created_at.isoformat(),
         "download_url":  download_url,
+        "original_url":  original_url,
     }
 
 

@@ -144,7 +144,7 @@ export default function Login() {
         <View style={styles.brand}>
           <View style={styles.iconContainer}>
             <LinearGradient colors={[Theme.secondary, Theme.accent]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.iconGradient}>
-              <Icon name="disc-3" size={32} color="white" />
+              <Icon name="vibeshift-logo" size={64} color="white" />
             </LinearGradient>
           </View>
           <View style={{ position: 'relative', alignItems: 'center' }}>
