@@ -43,11 +43,17 @@ def _verify_token(token: str) -> str:
     """Verify a Clerk JWT and return the Clerk user ID (sub claim)."""
     try:
         signing_key = _get_jwks_client().get_signing_key_from_jwt(token)
-        data = jwt.decode(token, signing_key.key, algorithms=["RS256"])
+        data = jwt.decode(
+            token,
+            signing_key.key,
+            algorithms=["RS256"],
+            options={"verify_aud": False},
+        )
         return data["sub"]
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")
-    except Exception:
+    except Exception as exc:
+        print(f"[auth] token verification failed: {type(exc).__name__}: {exc}")
         raise HTTPException(status_code=401, detail="Invalid token")
 
 
