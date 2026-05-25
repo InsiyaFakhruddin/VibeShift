@@ -13,27 +13,22 @@ Built as a full-stack mobile app with React Native, FastAPI, and state-of-the-ar
 ### Demo 1 — App Flow, Design & User Settings
 > Login/signup, home screen, dark/light mode, theme customization, profile editing, password update, library view
 
-<!-- PLACEHOLDER: Replace with your screen recording embed -->
-**[▶ Watch Demo 1 — App Flow & Design](#)**
-`// TODO: Upload screen-recording-1.mp4 to repo or YouTube and replace link above`
+[![Demo 1 - App Flow & Design](https://img.youtube.com/vi/lvlBIHZyvUM/maxresdefault.jpg)](https://youtube.com/shorts/lvlBIHZyvUM)
 
 ---
 
 ### Demo 2 — Stem Demixing
 > Tap a previous demix card to resume it, go back, upload a new song, view separated vocals & instruments, adjust stem volumes, raise vocal pitch, play the custom mix
 
-<!-- PLACEHOLDER: Replace with your screen recording embed -->
-**[▶ Watch Demo 2 — Full Demixing Flow](#)**
-`// TODO: Upload screen-recording-2.mp4 to repo or YouTube and replace link above`
+[![Demo 2 - Stem Demixing](https://img.youtube.com/vi/ObFI96htCaU/maxresdefault.jpg)](https://youtu.be/ObFI96htCaU)
 
 ---
 
 ### Demo 3 — Genre Transformation
 > Open genre transform tab, upload a song, select a genre, set duration/offset/guidance sliders, submit, wait for processing, play the transformed output
 
-<!-- PLACEHOLDER: Replace with your screen recording embed -->
-**[▶ Watch Demo 3 — Genre Transform Flow](#)**
-`// TODO: Upload screen-recording-3.mp4 to repo or YouTube and replace link above`
+[![Demo 3 - Genre Transform](https://img.youtube.com/vi/yzDqgnHZQww/maxresdefault.jpg)](https://youtube.com/shorts/yzDqgnHZQww)
+
 
 ---
 
