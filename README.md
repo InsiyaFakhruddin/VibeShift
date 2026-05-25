@@ -13,21 +13,21 @@ Built as a full-stack mobile app with React Native, FastAPI, and state-of-the-ar
 ### Demo 1 — App Flow, Design & User Settings
 > Login/signup, home screen, dark/light mode, theme customization, profile editing, password update, library view
 
-https://github.com/InsiyaFakhruddin/VibeShift/releases/download/v1.0-demo/Home.mp4
+https://github.com/user-attachments/assets/db469e72-2127-4280-b3bc-0eaf790299f6
 
 ---
 
 ### Demo 2 — Stem Demixing
 > Tap a previous demix card to resume it, go back, upload a new song, view separated vocals & instruments, adjust stem volumes, raise vocal pitch, play the custom mix
 
-https://github.com/InsiyaFakhruddin/VibeShift/releases/download/v1.0-demo/Demix.mp4
+https://github.com/user-attachments/assets/8692c6c0-9056-49bf-87e6-6171efaaa288
 
 ---
 
 ### Demo 3 — Genre Transformation
 > Open genre transform tab, upload a song, select a genre, set duration/offset/guidance sliders, submit, wait for processing, play the transformed output
 
-https://github.com/InsiyaFakhruddin/VibeShift/releases/download/v1.0-demo/Genre.mp4
+https://github.com/user-attachments/assets/03692546-d584-4b58-9e75-3d5756371af9
 
 
 ---
